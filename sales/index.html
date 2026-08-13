@@ -56,12 +56,8 @@
 <div id="content"><div class="loading">불러오는 중...</div></div>
 
 <script>
-  const SUPABASE_URL = 'https://gsqurjwbdkenmjwspucq.supabase.co';
-  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdzcXVyandiZGtlbm1qd3NwdWNxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY1NTY3MjIsImV4cCI6MjEwMjEzMjcyMn0.VWwpg2uLfFWquknfnKjsj6a_-AfTdQJS8LVw9dSQ0xo';
-
   WillyShell.mount({active:'sales', title:'영업 대시보드', subtitle:'답하는 질문 — 이번 달 목표까지 얼마나 남았나? B2B/B2C 어디서 벌고 있나?'});
 
-  const { createClient } = supabase;
   const won = n => Math.round(n).toLocaleString('ko-KR');
   const pct = n => (Math.round(n*10)/10).toLocaleString('ko-KR');
   const eok = n => {
@@ -75,7 +71,7 @@
   async function main(){
     const content = document.getElementById('content');
     try{
-      const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      const db = WillyShell.getAuthClient();
       const [{data:monthly,error:e1},{data:pipelineMonthly,error:e2},{data:rank,error:e3},{data:dealMonthly,error:e5},{data:rankMonthly,error:e6}] = await Promise.all([
         db.from('sales_monthly').select('*').order('sort_order',{ascending:true}),
         db.from('sales_pipeline_monthly').select('*'),

@@ -58,12 +58,8 @@
 <div id="content"><div class="loading">불러오는 중...</div></div>
 
 <script>
-  const SUPABASE_URL = 'https://gsqurjwbdkenmjwspucq.supabase.co';
-  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdzcXVyandiZGtlbm1qd3NwdWNxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY1NTY3MjIsImV4cCI6MjEwMjEzMjcyMn0.VWwpg2uLfFWquknfnKjsj6a_-AfTdQJS8LVw9dSQ0xo';
-
   WillyShell.mount({active:'hr', title:'인사 대시보드', subtitle:'답하는 질문 — 인건비가 매출의 몇 %인가? (설치기사 도급비 제외, 재직 9명 기준)'});
 
-  const { createClient } = supabase;
   const won = n => Math.round(n).toLocaleString('ko-KR');
   const pct = n => (Math.round(n*10)/10).toLocaleString('ko-KR');
   const OT_ORDER = ['0h','1-10','11-20','21-30','30h+'];
@@ -71,7 +67,7 @@
   async function main(){
     const content = document.getElementById('content');
     try{
-      const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      const db = WillyShell.getAuthClient();
       const [{data:monthly,error:e1},{data:dept,error:e2},{data:tenure,error:e3},{data:overtime,error:e4}] = await Promise.all([
         db.from('hr_monthly').select('*').order('sort_order',{ascending:true}),
         db.from('hr_dept').select('*'),

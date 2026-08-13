@@ -54,19 +54,15 @@
 <div id="content"><div class="loading">불러오는 중...</div></div>
 
 <script>
-  const SUPABASE_URL = 'https://gsqurjwbdkenmjwspucq.supabase.co';
-  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdzcXVyandiZGtlbm1qd3NwdWNxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY1NTY3MjIsImV4cCI6MjEwMjEzMjcyMn0.VWwpg2uLfFWquknfnKjsj6a_-AfTdQJS8LVw9dSQ0xo';
-
   WillyShell.mount({active:'customer', title:'고객 대시보드', subtitle:'답하는 질문 — B2C는 잘 설치되고 있나? B2B 파트너사는 계속 재발주하나?'});
 
-  const { createClient } = supabase;
   const won = n => Math.round(n).toLocaleString('ko-KR');
   const pct = n => (Math.round(n*10)/10).toLocaleString('ko-KR');
 
   async function main(){
     const content = document.getElementById('content');
     try{
-      const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      const db = WillyShell.getAuthClient();
       const [{data:summary,error:e1},{data:cohort,error:e2},{data:partners,error:e3},{data:type,error:e4}] = await Promise.all([
         db.from('customer_summary').select('*').order('sort_order',{ascending:true}),
         db.from('customer_as_cohort').select('*').order('sort_order',{ascending:true}),

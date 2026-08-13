@@ -63,12 +63,8 @@
 <div id="content"><div class="loading">불러오는 중...</div></div>
 
 <script>
-  const SUPABASE_URL = 'https://gsqurjwbdkenmjwspucq.supabase.co';
-  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdzcXVyandiZGtlbm1qd3NwdWNxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY1NTY3MjIsImV4cCI6MjEwMjEzMjcyMn0.VWwpg2uLfFWquknfnKjsj6a_-AfTdQJS8LVw9dSQ0xo';
-
   WillyShell.mount({active:'marketing', title:'마케팅 대시보드', subtitle:'답하는 질문 — 어느 채널이 진짜 효율이 좋나? B2B/B2C 채널 성격이 왜 다른가?'});
 
-  const { createClient } = supabase;
   const won = n => Math.round(n).toLocaleString('ko-KR');
   const pct = n => (Math.round(n*10)/10).toLocaleString('ko-KR');
   const eok = n => {
@@ -82,7 +78,7 @@
   async function main(){
     const content = document.getElementById('content');
     try{
-      const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      const db = WillyShell.getAuthClient();
       const [{data:naver,error:e2},{data:channelMonthly,error:e3}] = await Promise.all([
         db.from('marketing_naver_ads').select('*'),
         db.from('marketing_channel_monthly').select('*')
