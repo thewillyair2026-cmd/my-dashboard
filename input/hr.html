@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>인사 데이터 입력 · WILLY</title>
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
+<link rel="stylesheet" href="../shared/theme.css" />
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../shared/shell.js"></script>
+<style>
+  :root{ --accent:#7c3aed; --accent-light:#ede9fe; }
+  .panel{background:#fff;border:1px solid #E4E4E7;border-radius:14px;padding:18px 20px;margin-bottom:16px;}
+  .panel h2{font-size:15px;margin:0 0 4px;}
+  .panel .panel-note{font-size:11.5px;color:var(--willy-sub);margin:0 0 14px;}
+  .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px;}
+  .card{background:#fff;border:1px solid #E4E4E7;border-radius:14px;padding:16px 18px;}
+  .card .label{font-size:12px;color:var(--willy-sub);margin-bottom:8px;}
+  .card .value{font-size:24px;font-weight:700;letter-spacing:-0.5px;}
+  .form-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;align-items:end;margin-bottom:14px;}
+  .form-grid label{font-size:11.5px;font-weight:600;color:var(--willy-sub);display:block;margin-bottom:4px;}
+  .form-grid input,.form-grid select{width:100%;padding:8px 10px;border:1px solid #E4E4E7;border-radius:8px;font-family:inherit;font-size:13px;}
+  .btn{padding:9px 16px;border:none;border-radius:8px;background:var(--accent);color:#fff;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;}
+  .btn:hover{background:#6d28d9;}
+  .btn.secondary{background:#fff;border:1px solid #E4E4E7;color:var(--willy-text);}
+  .btn.secondary:hover{background:#f4f4f5;}
+  .btn.danger{background:#fff;border:1px solid #FFE1E8;color:#D81A3C;}
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  th,td{text-align:left;padding:8px 6px;white-space:nowrap;}
+  th{color:var(--willy-sub);font-weight:500;border-bottom:1px solid #E4E4E7;font-size:12px;}
+  td{border-bottom:1px solid #f4f4f5;}
+  .table-scroll{overflow-x:auto;}
+  .tag-left{color:var(--willy-sub);font-size:11px;background:#f4f4f5;padding:2px 8px;border-radius:999px;}
+  .tag-active{color:#178C5D;font-size:11px;background:#E3F5EC;padding:2px 8px;border-radius:999px;}
+  .msg{font-size:12.5px;padding:9px 12px;border-radius:8px;margin-bottom:14px;}
+  .msg.ok{background:#DFEAFF;color:#1338BE;}
+  .msg.err{background:#FFE1E8;color:#D81A3C;}
+  .loading,.err-box{padding:40px;text-align:center;color:var(--willy-sub);font-size:13px;}
+</style>
+</head>
+<body>
+<div id="shell-root"></div>
+<div id="content"><div class="loading">불러오는 중...</div></div>
+
+<script>
+  WillyShell.mount({active:'hr', title:'인사 데이터 입력', subtitle:'직원 명부 관리 및 연차 사용 입력'});
+
+  const won = n => Math.round(n).toLocaleString('ko-KR');
+  const db = () => WillyShell.getAuthClient();
+  const thisYm = () => { const d=new Date(); return d.getFullYear()+'.'+String(d.getMonth()+1).padStart(2,'0'); };
+
+  let EMPLOYEES = [];
+  let editingId = null;
+
+  async function main(){
+    const content = document.getElementById('content');
+    try{
+      const [{data:emp,error:e1},{data:leave,error:e2}] = await Promise.all([
+        db().from('hr_employees').select('*').order('join_date',{ascending:true}),
+        db().from('hr_leave_usage').select('*')
+      ]);
+      if(e1||e2) throw (e1||e2);
+      EMPLOYEES = emp || [];
+      render(EMPLOYEES, leave || []);
+    }catch(err){
+      content.innerHTML = `<div class="err-box">데이터를 불러오지 못했습니다.<br>${(err && err.message) || err}</div>`;
+      console.error(err);
+    }
+  }
+
+  function render(employees, leaveUsage){
+    const active = employees.filter(e=>!e.leave_date);
+    const totalPayroll = active.reduce((s,e)=>s+e.monthly_salary,0);
+    const thisYear = new Date().getFullYear();
+    const usedThisYear = leaveUsage.filter(l=>l.ym.startsWith(String(thisYear))).reduce((s,l)=>s+Number(l.days_used),0);
+
+    const content = document.getElementById('content');
+    content.innerHTML = `
+      <div class="cards">
+        <div class="card"><div class="label">재직 인원</div><div class="value">${active.length}명</div></div>
+        <div class="card"><div class="label">월 인건비 합계</div><div class="value">${won(totalPayroll)}원</div></div>
+        <div class="card"><div class="label">올해 연차 사용 합계</div><div class="value">${usedThisYear}일</div></div>
+      </div>
+
+      <div class="panel">
+        <h2 id="form-title">직원 추가</h2>
+        <p class="panel-note">기존 직원을 표에서 "수정" 누르면 이 폼에 불러옵니다. 퇴사 처리는 퇴사일만 입력하고 저장하면 됩니다.</p>
+        <div id="emp-msg"></div>
+        <div class="form-grid">
+          <div><label>이름</label><input id="f-name" type="text" /></div>
+          <div><label>부서</label>
+            <select id="f-dept">
+              <option>대표</option><option>경리</option><option>마케팅</option>
+              <option>B2B영업</option><option>B2C영업</option><option>기타</option>
+            </select>
+          </div>
+          <div><label>입사일</label><input id="f-join" type="date" /></div>
+          <div><label>퇴사일 (재직중이면 비움)</label><input id="f-leave" type="date" /></div>
+          <div><label>월 급여(원)</label><input id="f-salary" type="number" step="1" /></div>
+          <div><label>올해 연차 부여일수</label><input id="f-granted" type="number" step="0.5" value="15" /></div>
+        </div>
+        <button class="btn" id="save-emp-btn">저장</button>
+        <button class="btn secondary" id="cancel-edit-btn" style="display:none;">취소</button>
+      </div>
+
+      <div class="panel">
+        <h2>직원 명부</h2>
+        <div class="table-scroll">
+        <table>
+          <thead><tr><th>이름</th><th>부서</th><th>입사일</th><th>상태</th><th>월급여</th><th>연차(사용/부여)</th><th></th></tr></thead>
+          <tbody id="emp-body"></tbody>
+        </table>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>연차 사용 입력</h2>
+        <p class="panel-note">해당 월에 사용한 연차일수를 입력하세요 (누적이 아니라 그 달 사용분만)</p>
+        <div id="leave-msg"></div>
+        <div class="form-grid">
+          <div><label>직원</label>
+            <select id="lv-emp">${active.map(e=>`<option value="${e.id}">${e.name}</option>`).join('')}</select>
+          </div>
+          <div><label>연월 (YYYY.MM)</label><input id="lv-ym" type="text" value="${thisYm()}" /></div>
+          <div><label>사용일수</label><input id="lv-days" type="number" step="0.5" /></div>
+          <div><label>메모(선택)</label><input id="lv-note" type="text" /></div>
+          <div><button class="btn" id="save-leave-btn">기록</button></div>
+        </div>
+        <div class="table-scroll">
+        <table>
+          <thead><tr><th>직원</th><th>연월</th><th>사용일수</th><th>메모</th></tr></thead>
+          <tbody id="leave-body"></tbody>
+        </table>
+        </div>
+      </div>
+    `;
+
+    renderEmpTable(employees, leaveUsage);
+    renderLeaveTable(employees, leaveUsage);
+
+    document.getElementById('save-emp-btn').addEventListener('click', saveEmployee);
+    document.getElementById('cancel-edit-btn').addEventListener('click', ()=>{ editingId=null; resetEmpForm(); });
+    document.getElementById('save-leave-btn').addEventListener('click', ()=>saveLeave(leaveUsage));
+  }
+
+  function empLeaveDays(empId, leaveUsage){
+    return leaveUsage.filter(l=>l.employee_id===empId).reduce((s,l)=>s+Number(l.days_used),0);
+  }
+
+  function renderEmpTable(employees, leaveUsage){
+    document.getElementById('emp-body').innerHTML = employees.map(e=>{
+      const used = empLeaveDays(e.id, leaveUsage);
+      return `<tr>
+        <td>${e.name}</td>
+        <td>${e.dept}</td>
+        <td>${e.join_date}</td>
+        <td>${e.leave_date ? `<span class="tag-left">퇴사 ${e.leave_date}</span>` : `<span class="tag-active">재직중</span>`}</td>
+        <td>${won(e.monthly_salary)}원</td>
+        <td>${used}/${e.annual_leave_granted}일</td>
+        <td><button class="btn secondary" data-edit="${e.id}" style="padding:5px 10px;font-size:12px;">수정</button></td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="7" style="color:var(--willy-sub);">등록된 직원이 없습니다.</td></tr>';
+
+    document.querySelectorAll('[data-edit]').forEach(btn=>{
+      btn.addEventListener('click', ()=>loadEmpForEdit(Number(btn.dataset.edit)));
+    });
+  }
+
+  function renderLeaveTable(employees, leaveUsage){
+    const nameOf = id => (employees.find(e=>e.id===id)||{}).name || '(삭제됨)';
+    const sorted = [...leaveUsage].sort((a,b)=> b.ym.localeCompare(a.ym));
+    document.getElementById('leave-body').innerHTML = sorted.slice(0,30).map(l=>`
+      <tr><td>${nameOf(l.employee_id)}</td><td>${l.ym}</td><td>${l.days_used}일</td><td>${l.note||''}</td></tr>
+    `).join('') || '<tr><td colspan="4" style="color:var(--willy-sub);">기록이 없습니다.</td></tr>';
+  }
+
+  function resetEmpForm(){
+    document.getElementById('form-title').textContent = '직원 추가';
+    document.getElementById('f-name').value = '';
+    document.getElementById('f-dept').value = '대표';
+    document.getElementById('f-join').value = '';
+    document.getElementById('f-leave').value = '';
+    document.getElementById('f-salary').value = '';
+    document.getElementById('f-granted').value = '15';
+    document.getElementById('cancel-edit-btn').style.display = 'none';
+  }
+
+  function loadEmpForEdit(id){
+    const e = EMPLOYEES.find(x=>x.id===id);
+    if(!e) return;
+    editingId = id;
+    document.getElementById('form-title').textContent = `직원 수정 — ${e.name}`;
+    document.getElementById('f-name').value = e.name;
+    document.getElementById('f-dept').value = e.dept;
+    document.getElementById('f-join').value = e.join_date;
+    document.getElementById('f-leave').value = e.leave_date || '';
+    document.getElementById('f-salary').value = e.monthly_salary;
+    document.getElementById('f-granted').value = e.annual_leave_granted;
+    document.getElementById('cancel-edit-btn').style.display = 'inline-block';
+    window.scrollTo({top:0, behavior:'smooth'});
+  }
+
+  async function saveEmployee(){
+    const name = document.getElementById('f-name').value.trim();
+    const dept = document.getElementById('f-dept').value;
+    const join_date = document.getElementById('f-join').value;
+    const leave_date = document.getElementById('f-leave').value || null;
+    const monthly_salary = Number(document.getElementById('f-salary').value);
+    const annual_leave_granted = Number(document.getElementById('f-granted').value);
+    const msgSlot = document.getElementById('emp-msg');
+
+    if(!name || !dept || !join_date || !monthly_salary){
+      msgSlot.innerHTML = '<div class="msg err">이름·부서·입사일·월급여는 필수입니다.</div>';
+      return;
+    }
+    const row = { name, dept, join_date, leave_date, monthly_salary, annual_leave_granted };
+    const q = editingId ? db().from('hr_employees').update(row).eq('id', editingId) : db().from('hr_employees').insert(row);
+    const { error } = await q;
+    if(error){
+      msgSlot.innerHTML = `<div class="msg err">저장 실패: ${error.message}</div>`;
+      return;
+    }
+    msgSlot.innerHTML = '<div class="msg ok">저장되었습니다.</div>';
+    editingId = null;
+    main();
+  }
+
+  async function saveLeave(leaveUsage){
+    const employee_id = Number(document.getElementById('lv-emp').value);
+    const ym = document.getElementById('lv-ym').value.trim();
+    const days_used = Number(document.getElementById('lv-days').value);
+    const note = document.getElementById('lv-note').value.trim() || null;
+    const msgSlot = document.getElementById('leave-msg');
+
+    if(!employee_id || !/^\d{4}\.\d{2}$/.test(ym) || !days_used){
+      msgSlot.innerHTML = '<div class="msg err">직원·연월(YYYY.MM)·사용일수를 확인해주세요.</div>';
+      return;
+    }
+    const { error } = await db().from('hr_leave_usage').insert({ employee_id, ym, days_used, note });
+    if(error){
+      msgSlot.innerHTML = `<div class="msg err">저장 실패: ${error.message}</div>`;
+      return;
+    }
+    msgSlot.innerHTML = '<div class="msg ok">기록되었습니다.</div>';
+    main();
+  }
+
+  WillyShell.requireRole(['owner','hr'], main);
+</script>
+</body>
+</html>

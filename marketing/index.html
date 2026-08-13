@@ -39,6 +39,8 @@
   .bar-fill.b2b{background:var(--willy-navy);}
   .bar-fill.b2c{background:var(--accent);}
   .pct-tag{font-weight:700;width:3.6em;text-align:right;}
+  .manage-link{display:inline-block;margin-bottom:16px;font-size:12.5px;font-weight:600;color:var(--accent);text-decoration:none;}
+  .manage-link:hover{text-decoration:underline;}
   .trend-legend{display:flex;gap:16px;font-size:11px;color:var(--willy-sub);margin-top:8px;}
   .trend-legend span{display:inline-flex;align-items:center;gap:4px;}
   .trend-legend i{display:inline-block;width:10px;height:10px;border-radius:2px;}
@@ -146,6 +148,8 @@
     const label = periodLabel(period);
     const content = document.getElementById('content');
     content.innerHTML = `
+      <a class="manage-link" href="../input/marketing.html">→ 마케팅 비용 입력 페이지로 이동</a>
+
       <div class="cards">
         <div class="card">
           <div class="label">${label} 견적→계약 전환율</div>

@@ -29,6 +29,31 @@
     });
   }
 
+  // 현재 로그인한 사용자의 역할('owner'|'marketing'|'hr')을 반환하는 Promise. 미배정이면 null.
+  function getUserRole(){
+    return getAuthClient().auth.getUser().then(function(res){
+      var user = res && res.data && res.data.user;
+      if(!user) return null;
+      return getAuthClient().from('user_roles').select('role').eq('user_id', user.id).maybeSingle()
+        .then(function(r){ return (r.data && r.data.role) || null; });
+    });
+  }
+
+  // 로그인 + 특정 역할 중 하나여야 onReady(role) 실행. 아니면 접근거부 안내 후 홈으로 이동.
+  function requireRole(roles, onReady){
+    requireAuth(function(){
+      getUserRole().then(function(role){
+        if(!role || roles.indexOf(role) === -1){
+          alert('이 페이지에 접근할 권한이 없습니다.');
+          var depth = Math.max(location.pathname.replace(/^\//,'').split('/').filter(Boolean).length - 1, 0);
+          location.href = (new Array(depth).fill('..').join('/') + (depth?'/':'') ) + 'index.html';
+          return;
+        }
+        onReady(role);
+      });
+    });
+  }
+
   var LOGO_SVG = '<svg width="656" height="132" viewBox="0 0 656 132" fill="none" xmlns="http://www.w3.org/2000/svg">'+
     '<path d="M501.642 0H537.276L578.942 58.0691L620.42 0H655.111L593.648 80.1278V131.975H563.105V80.1278L501.642 0Z" fill="#F4F4F4"/>'+
     '<path d="M420.872 0H449.718V109.916H535.124V131.975H420.872V0Z" fill="#F4F4F4"/>'+
@@ -178,6 +203,8 @@
     setPeriodFilter: setPeriodFilter,
     filterByPeriod: filterByPeriod,
     requireAuth: requireAuth,
+    requireRole: requireRole,
+    getUserRole: getUserRole,
     getAuthClient: getAuthClient,
     loginPath: loginPath
   };

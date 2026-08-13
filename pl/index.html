@@ -19,7 +19,8 @@
   .card .barbg{background:#f4f4f5;border-radius:999px;height:6px;margin-top:10px;overflow:hidden;}
   .card .barfg{background:var(--accent);height:100%;border-radius:999px;}
   .panel{background:#fff;border:1px solid #E4E4E7;border-radius:14px;padding:18px 20px;margin-bottom:16px;}
-  .panel h2{font-size:15px;margin:0 0 14px;}
+  .panel h2{font-size:15px;margin:0 0 4px;}
+  .panel .panel-note{font-size:11.5px;color:var(--willy-sub);margin:0 0 14px;}
   .grid2{display:grid;grid-template-columns:1.3fr 1fr;gap:16px;}
   table{width:100%;border-collapse:collapse;font-size:13px;}
   th,td{text-align:right;padding:8px 6px;white-space:nowrap;}
@@ -41,6 +42,8 @@
   .gauge-sub{font-size:12px;color:var(--willy-sub);margin-top:2px;}
   .gauge-be{margin-top:14px;padding:10px;background:var(--accent-bg);border-radius:10px;font-size:12px;color:var(--willy-sub);}
   .gauge-be b{color:var(--willy-text);font-size:14px;}
+  .manage-link{display:inline-block;margin-bottom:16px;font-size:12.5px;font-weight:600;color:var(--accent);text-decoration:none;}
+  .manage-link:hover{text-decoration:underline;}
   .loading,.err{padding:40px;text-align:center;color:var(--willy-sub);font-size:13px;}
   .err{color:var(--bad);}
   @media (max-width:860px){
@@ -58,59 +61,114 @@
 
   const won = n => Math.round(n).toLocaleString('ko-KR');
   const pct = n => (Math.round(n*10)/10).toLocaleString('ko-KR');
+  const eok = n => {
+    const sign = n<0?'-':'';
+    n = Math.abs(Math.round(n));
+    const eokPart = Math.floor(n/100000000);
+    const manPart = Math.round((n%100000000)/10000);
+    return sign + (eokPart>0?`${eokPart}억 `:'') + `${manPart.toLocaleString('ko-KR')}만원`;
+  };
+
+  function ymStart(ym){ const [y,m] = ym.split('.').map(Number); return new Date(y, m-1, 1); }
+  function ymEnd(ym){ const [y,m] = ym.split('.').map(Number); return new Date(y, m, 0); }
+  function activeInMonth(e, ym){
+    const start = ymStart(ym), end = ymEnd(ym);
+    const join = new Date(e.join_date);
+    const leave = e.leave_date ? new Date(e.leave_date) : null;
+    return join <= end && (!leave || leave >= start);
+  }
 
   async function main(){
     const content = document.getElementById('content');
     try{
       const db = WillyShell.getAuthClient();
-      const [{data:summary,error:e1},{data:cost,error:e2},{data:margin,error:e3}] = await Promise.all([
-        db.from('pl_summary').select('*').order('sort_order',{ascending:true}),
-        db.from('pl_cost').select('*'),
+      const [{data:monthly,error:e1},{data:employees,error:e2},{data:naver,error:e3},{data:mktCost,error:e4},{data:plCost,error:e5},{data:margin,error:e6}] = await Promise.all([
+        db.from('sales_monthly').select('*').order('sort_order',{ascending:true}),
+        db.from('hr_employees').select('*'),
+        db.from('marketing_naver_ads').select('*'),
+        db.from('marketing_cost_monthly').select('*'),
+        db.from('pl_cost_monthly').select('*'),
         db.from('pl_margin').select('*')
       ]);
-      if(e1||e2||e3) throw (e1||e2||e3);
-      if(!summary?.length||!cost?.length||!margin?.length) throw new Error('데이터가 비어 있습니다.');
-      let selectedMonth = summary[summary.length-1].month;
-      WillyShell.setMonthFilter(summary.map(s=>s.month), selectedMonth, (m)=>{ selectedMonth = m; render(summary, cost, margin, selectedMonth); });
-      render(summary, cost, margin, selectedMonth);
+      if(e1||e2||e3||e4||e5||e6) throw (e1||e2||e3||e4||e5||e6);
+      if(!monthly?.length) throw new Error('데이터가 비어 있습니다.');
+      let period = monthly[monthly.length-1].ym;
+      const periods = WillyShell.buildPeriodOptions(monthly);
+      WillyShell.setPeriodFilter(periods, period, (p)=>{ period = p; render(monthly, employees||[], naver||[], mktCost||[], plCost||[], margin||[], period); });
+      render(monthly, employees||[], naver||[], mktCost||[], plCost||[], margin||[], period);
     }catch(err){
       content.innerHTML = `<div class="err">데이터를 불러오지 못했습니다.<br>${(err && err.message) || err}</div>`;
       console.error(err);
     }
   }
 
-  function render(summary, cost, margin, selectedMonth){
-    const idx = summary.findIndex(s=>s.month===selectedMonth);
-    const thisM = summary[idx>=0?idx:summary.length-1];
-    const prevM = idx>0 ? summary[idx-1] : null;
+  function periodLabel(period){
+    if(period==='ALL') return '전체기간';
+    if(period.indexOf('YEAR:')===0) return period.slice(5)+'년 전체';
+    return period;
+  }
 
-    const totalCost = thisM.device_cost + thisM.install_fee + thisM.payroll + thisM.other_cost;
-    const opProfit = thisM.revenue - totalCost;
-    const opMarginRate = thisM.revenue ? opProfit/thisM.revenue*100 : 0;
-    const beRate = totalCost ? thisM.revenue/totalCost*100 : 0;
+  function computeStage(monthly, employees, naver, mktCost, plCost, yms){
+    const revenue = monthly.filter(m=>yms.includes(m.ym)).reduce((s,m)=>s+m.revenue,0);
+    const payroll = yms.reduce((s,ym)=> s + employees.filter(e=>activeInMonth(e,ym)).reduce((s2,e)=>s2+e.monthly_salary,0), 0);
+    const adCost = yms.reduce((s,ym)=>{
+      const naverSum = naver.filter(n=>n.month===ym).reduce((s2,n)=>s2+n.spend,0);
+      const mktSum = mktCost.filter(m=>m.ym===ym).reduce((s2,m)=>s2+m.amount,0);
+      return s + naverSum + mktSum;
+    }, 0);
+    const plRows = yms.map(ym=>plCost.find(p=>p.ym===ym)).filter(Boolean);
+    const deviceCost = plRows.reduce((s,p)=>s+p.device_cost,0);
+    const installFee = plRows.reduce((s,p)=>s+p.install_fee,0);
+    const otherCost = plRows.reduce((s,p)=>s+p.other_cost,0);
+    const totalCost = payroll+adCost+deviceCost+installFee+otherCost;
+    return {revenue,payroll,adCost,deviceCost,installFee,otherCost,totalCost,opProfit:revenue-totalCost};
+  }
 
-    const opTarget = 950;
-    const opTargetRate = opTarget ? opProfit/opTarget*100 : 0;
+  function render(monthly, employees, naver, mktCost, plCost, margin, period){
+    const yms = WillyShell.filterByPeriod(monthly, period).map(m=>m.ym);
+    const label = periodLabel(period);
+    const stage = computeStage(monthly, employees, naver, mktCost, plCost, yms);
+
+    const opMarginRate = stage.revenue ? stage.opProfit/stage.revenue*100 : 0;
+    const beRate = stage.totalCost ? stage.revenue/stage.totalCost*100 : 0;
+    const opTargetPerMonth = 9500000;
+    const opTarget = opTargetPerMonth * Math.max(yms.length,1);
+    const opTargetRate = opTarget ? stage.opProfit/opTarget*100 : 0;
     const marginTarget = 10;
     const marginGap = marginTarget - opMarginRate;
 
-    let prevTotalCost = null;
-    if(prevM){ prevTotalCost = prevM.device_cost+prevM.install_fee+prevM.payroll+prevM.other_cost; }
-    const costDiff = prevTotalCost!==null ? totalCost-prevTotalCost : null;
+    const isSingleMonth = period!=='ALL' && period.indexOf('YEAR:')!==0;
+    let costDiff = null;
+    if(isSingleMonth){
+      const idx = monthly.findIndex(m=>m.ym===period);
+      if(idx>0){
+        const prevStage = computeStage(monthly, employees, naver, mktCost, plCost, [monthly[idx-1].ym]);
+        costDiff = stage.totalCost - prevStage.totalCost;
+      }
+    }
 
-    const totalCostItems = cost.reduce((s,c)=>s+c.amount,0);
+    const costItems = [
+      {item:'기기매입비', amount:stage.deviceCost, cost_type:'변동'},
+      {item:'설치도급비', amount:stage.installFee, cost_type:'변동'},
+      {item:'인건비', amount:stage.payroll, cost_type:'고정'},
+      {item:'광고비', amount:stage.adCost, cost_type:'변동'},
+      {item:'기타(임대료 등)', amount:stage.otherCost, cost_type:'고정'}
+    ];
+    const totalCostItems = costItems.reduce((s,c)=>s+c.amount,0) || 1;
 
     const content = document.getElementById('content');
     content.innerHTML = `
+      <a class="manage-link" href="../input/pl.html">→ 손익 비용 입력 페이지로 이동</a>
+
       <div class="cards">
         <div class="card">
-          <div class="label">영업이익</div>
-          <div class="value big">${won(opProfit)}만원</div>
+          <div class="label">${label} 영업이익</div>
+          <div class="value big">${eok(stage.opProfit)}</div>
           <div class="barbg"><div class="barfg" style="width:${Math.min(Math.max(opTargetRate,0),100)}%"></div></div>
-          <div class="sub">목표 ${won(opTarget)}만원 대비 ${pct(opTargetRate)}%</div>
+          <div class="sub">목표 ${eok(opTarget)} 대비 ${pct(opTargetRate)}%</div>
         </div>
         <div class="card">
-          <div class="label">영업이익률</div>
+          <div class="label">${label} 영업이익률</div>
           <div class="value">${pct(opMarginRate)}%</div>
           <div class="sub">${marginGap>0 ? `목표 10%까지 ${pct(marginGap)}%p 부족` : `목표 10% 달성`}</div>
         </div>
@@ -120,35 +178,37 @@
           <div class="sub">매출 ÷ 총비용</div>
         </div>
         <div class="card">
-          <div class="label">총비용</div>
-          <div class="value">${won(totalCost)}만원</div>
-          <div class="sub">${costDiff!==null ? (costDiff>=0?`전월 대비 +${won(costDiff)}만원`:`전월 대비 -${won(-costDiff)}만원`) : '전월 데이터 없음'}</div>
+          <div class="label">${label} 총비용</div>
+          <div class="value">${eok(stage.totalCost)}</div>
+          <div class="sub">${costDiff!==null ? (costDiff>=0?`전월 대비 +${eok(costDiff)}`:`전월 대비 -${eok(-costDiff)}`) : (isSingleMonth?'전월 데이터 없음':'단일 월 선택 시 전월 대비 표시')}</div>
         </div>
       </div>
 
       <div class="grid2">
         <div class="panel">
-          <h2>손익 구조 (기기값 · 설치비 분리)</h2>
-          ${waterfall(thisM, opProfit)}
+          <h2>손익 구조 (기기값 · 설치비 · 광고비 분리)</h2>
+          <p class="panel-note">${label} 기준</p>
+          ${waterfall(stage)}
         </div>
         <div class="panel">
           <h2>손익분기 달성률</h2>
-          ${gauge(beRate, totalCost)}
+          ${gauge(beRate, stage.totalCost)}
         </div>
       </div>
 
       <div class="grid2">
         <div class="panel">
           <h2>비용 순위</h2>
+          <p class="panel-note">${label} 기준 · 기기매입비·설치도급비·기타는 손익 비용 입력에서, 인건비는 인사 명부에서, 광고비는 마케팅 데이터에서 자동 반영</p>
           <div class="table-scroll">
           <table>
-            <thead><tr><th>항목</th><th>구분</th><th>금액(만원)</th><th>비중</th></tr></thead>
+            <thead><tr><th>항목</th><th>구분</th><th>금액</th><th>비중</th></tr></thead>
             <tbody>
-              ${cost.sort((a,b)=>b.amount-a.amount).map(c=>`
+              ${costItems.sort((a,b)=>b.amount-a.amount).map(c=>`
                 <tr>
                   <td>${c.item}</td>
                   <td><span class="tag ${c.cost_type==='고정'?'fixed':'var'}">${c.cost_type}</span></td>
-                  <td>${won(c.amount)}</td>
+                  <td>${won(c.amount)}원</td>
                   <td>${pct(c.amount/totalCostItems*100)}%</td>
                 </tr>`).join('')}
             </tbody>
@@ -157,7 +217,7 @@
         </div>
         <div class="panel">
           <h2>상품유형별 공헌이익률</h2>
-          ${marginList(margin)}
+          ${margin.length ? marginList(margin) : '<div style="color:var(--willy-sub);font-size:12px;">데이터 없음</div>'}
         </div>
       </div>
     `;
@@ -176,24 +236,26 @@
     }).join('');
   }
 
-  function waterfall(m, opProfit){
+  function waterfall(m){
     const W=520,H=280,padL=40,padR=10,padT=16,padB=46;
     const innerW=W-padL-padR, innerH=H-padT-padB;
-    const maxVal = m.revenue*1.15;
+    const maxVal = Math.max(m.revenue,1)*1.15;
     const yOf = v => padT + innerH*(1 - v/maxVal);
 
     const cats = [];
     let cum = m.revenue;
-    cats.push({label:'매출', top:yOf(m.revenue), bottom:yOf(0), color:'var(--accent)', text:won(m.revenue)});
-    cats.push({label:'기기매입비', top:yOf(cum), bottom:yOf(cum-m.device_cost), color:'var(--gray)', text:'-'+won(m.device_cost)});
-    cum -= m.device_cost;
-    cats.push({label:'설치도급비', top:yOf(cum), bottom:yOf(cum-m.install_fee), color:'var(--gray)', text:'-'+won(m.install_fee)});
-    cum -= m.install_fee;
-    cats.push({label:'인건비', top:yOf(cum), bottom:yOf(cum-m.payroll), color:'var(--gray)', text:'-'+won(m.payroll)});
+    cats.push({label:'매출', top:yOf(m.revenue), bottom:yOf(0), color:'var(--accent)', text:eok(m.revenue)});
+    cats.push({label:'기기매입비', top:yOf(cum), bottom:yOf(cum-m.deviceCost), color:'var(--gray)', text:'-'+eok(m.deviceCost)});
+    cum -= m.deviceCost;
+    cats.push({label:'설치도급비', top:yOf(cum), bottom:yOf(cum-m.installFee), color:'var(--gray)', text:'-'+eok(m.installFee)});
+    cum -= m.installFee;
+    cats.push({label:'인건비', top:yOf(cum), bottom:yOf(cum-m.payroll), color:'var(--gray)', text:'-'+eok(m.payroll)});
     cum -= m.payroll;
-    cats.push({label:'기타비용', top:yOf(cum), bottom:yOf(cum-m.other_cost), color:'var(--gray)', text:'-'+won(m.other_cost)});
-    cum -= m.other_cost;
-    cats.push({label:'영업이익', top:yOf(Math.max(opProfit,0)), bottom:yOf(Math.min(opProfit,0)), color:'var(--accent)', text:won(opProfit)});
+    cats.push({label:'광고비', top:yOf(cum), bottom:yOf(cum-m.adCost), color:'var(--gray)', text:'-'+eok(m.adCost)});
+    cum -= m.adCost;
+    cats.push({label:'기타비용', top:yOf(cum), bottom:yOf(cum-m.otherCost), color:'var(--gray)', text:'-'+eok(m.otherCost)});
+    cum -= m.otherCost;
+    cats.push({label:'영업이익', top:yOf(Math.max(m.opProfit,0)), bottom:yOf(Math.min(m.opProfit,0)), color:'var(--accent)', text:eok(m.opProfit)});
 
     const step = innerW/cats.length;
     const bw = step*0.6;
@@ -201,8 +263,8 @@
       const x = padL+step*i+(step-bw)/2;
       const top = Math.min(c.top,c.bottom), h = Math.abs(c.bottom-c.top)||2;
       return `<rect x="${x}" y="${top}" width="${bw}" height="${h}" rx="3" fill="${c.color}"></rect>
-              <text x="${x+bw/2}" y="${top-6}" text-anchor="middle" font-size="10.5" fill="var(--willy-sub)">${c.text}</text>
-              <text x="${x+bw/2}" y="${H-padB+20}" text-anchor="middle" font-size="10.5" fill="var(--willy-sub)">${c.label}</text>`;
+              <text x="${x+bw/2}" y="${top-6}" text-anchor="middle" font-size="9.5" fill="var(--willy-sub)">${c.text}</text>
+              <text x="${x+bw/2}" y="${H-padB+20}" text-anchor="middle" font-size="10" fill="var(--willy-sub)">${c.label}</text>`;
     }).join('');
 
     return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;">
@@ -249,7 +311,7 @@
         </svg>
         <div class="gauge-num">${pct(rate)}%</div>
         <div class="gauge-sub">매출 ÷ 총비용</div>
-        <div class="gauge-be">손익분기점 매출액 <b>${won(totalCost)}만원</b></div>
+        <div class="gauge-be">손익분기점 매출액 <b>${eok(totalCost)}</b></div>
       </div>`;
   }
 
