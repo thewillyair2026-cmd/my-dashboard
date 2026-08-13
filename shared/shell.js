@@ -1,5 +1,34 @@
 // WILLY 공통 사이드바/탑바 셸
 (function(){
+  var SUPABASE_URL = 'https://gsqurjwbdkenmjwspucq.supabase.co';
+  var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdzcXVyandiZGtlbm1qd3NwdWNxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY1NTY3MjIsImV4cCI6MjEwMjEzMjcyMn0.VWwpg2uLfFWquknfnKjsj6a_-AfTdQJS8LVw9dSQ0xo';
+  var _authClient = null;
+  function getAuthClient(){
+    if(!_authClient) _authClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    return _authClient;
+  }
+
+  // 현재 페이지 깊이에 맞는 login/index.html 상대경로 계산
+  function loginPath(){
+    var parts = location.pathname.replace(/^\//,'').split('/').filter(Boolean);
+    var depth = Math.max(parts.length - 1, 0);
+    var prefix = new Array(depth).fill('..').join('/');
+    return (prefix ? prefix+'/' : '') + 'login/index.html';
+  }
+
+  // 로그인 세션이 없으면 로그인 페이지로 이동, 있으면 onReady() 실행
+  function requireAuth(onReady){
+    var here = location.pathname.replace(/^\//,'') || 'index.html';
+    getAuthClient().auth.getSession().then(function(res){
+      var session = res && res.data && res.data.session;
+      if(!session){
+        location.href = loginPath() + '?redirect=' + encodeURIComponent(here);
+        return;
+      }
+      onReady();
+    });
+  }
+
   var LOGO_SVG = '<svg width="656" height="132" viewBox="0 0 656 132" fill="none" xmlns="http://www.w3.org/2000/svg">'+
     '<path d="M501.642 0H537.276L578.942 58.0691L620.42 0H655.111L593.648 80.1278V131.975H563.105V80.1278L501.642 0Z" fill="#F4F4F4"/>'+
     '<path d="M420.872 0H449.718V109.916H535.124V131.975H420.872V0Z" fill="#F4F4F4"/>'+
@@ -44,7 +73,15 @@
         '<a class="logo-row" href="../index.html">'+LOGO_SVG+'</a>'+
         '<nav class="willy-nav">'+navHtml+'</nav>'+
         '<div class="sb-footer"><div class="name">WILLY 경영관리</div><div class="role">시스템에어컨 설치</div></div>'+
+        '<button type="button" class="sb-logout" id="willy-logout">로그아웃</button>'+
       '</aside>';
+
+    var logoutBtn = document.getElementById('willy-logout');
+    if(logoutBtn){
+      logoutBtn.addEventListener('click', function(){
+        getAuthClient().auth.signOut().then(function(){ location.href = loginPath(); });
+      });
+    }
 
     var topbar = document.createElement('header');
     topbar.className = 'willy-topbar';
@@ -139,6 +176,9 @@
     setMonthFilter: setMonthFilter,
     buildPeriodOptions: buildPeriodOptions,
     setPeriodFilter: setPeriodFilter,
-    filterByPeriod: filterByPeriod
+    filterByPeriod: filterByPeriod,
+    requireAuth: requireAuth,
+    getAuthClient: getAuthClient,
+    loginPath: loginPath
   };
 })();

@@ -42,6 +42,12 @@ body{
 .willy-sidebar .sb-footer{padding:12px 10px 4px; border-top:1px solid rgba(255,255,255,.12); margin-top:8px;}
 .willy-sidebar .sb-footer .name{font-size:12.5px; font-weight:700; color:#fff;}
 .willy-sidebar .sb-footer .role{font-size:11px; color:#8A8CA0; margin-top:1px;}
+.willy-sidebar .sb-logout{
+  margin:8px 10px 0; padding:8px 10px; border-radius:8px; border:1px solid rgba(255,255,255,.14);
+  background:transparent; color:#A8ADD0; font-family:inherit; font-size:12px; font-weight:600;
+  cursor:pointer; text-align:left; transition:background .12s ease, color .12s ease;
+}
+.willy-sidebar .sb-logout:hover{background:rgba(255,255,255,.07); color:#fff;}
 
 /* 본문 영역 */
 .willy-main{margin-left:var(--sidebar-w); min-height:100vh;}
