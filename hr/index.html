@@ -109,6 +109,13 @@
   }
   function activeNow(e){ return !e.leave_date || new Date(e.leave_date) >= new Date(); }
 
+  // 입사 1년 미만은 근무 개월 수만큼 월차 적립(최대 11일), 1년 이상은 등록된 연차 부여일수 사용
+  function grantedDaysFor(e){
+    const months = Math.floor((new Date() - new Date(e.join_date)) / (1000*60*60*24*30.44));
+    if(months < 12) return Math.min(months, 11);
+    return e.annual_leave_granted;
+  }
+
   function render(employees, leaveUsage, monthly, period){
     if(!employees.length){
       document.getElementById('content').innerHTML = `
@@ -215,18 +222,19 @@
         </div>
         <div class="panel">
           <h2>연차 사용 현황 (${leaveYear}년)</h2>
-          <p class="panel-note">사용일수 / 부여일수</p>
+          <p class="panel-note">사용일수 / 부여일수 · 입사 1년 미만은 월차(근무 개월수, 최대 11일) 기준</p>
           <div class="table-scroll">
           <table>
             <thead><tr><th>이름</th><th></th><th>사용/부여</th></tr></thead>
             <tbody>
               ${activeList.map(e=>{
                 const used = leaveUsage.filter(l=>l.employee_id===e.id && l.ym.startsWith(leaveYear)).reduce((s,l)=>s+Number(l.days_used),0);
-                const ratio = e.annual_leave_granted ? Math.min(used/e.annual_leave_granted*100,100) : 0;
+                const granted = grantedDaysFor(e);
+                const ratio = granted ? Math.min(used/granted*100,100) : 0;
                 return `<tr>
                   <td>${e.name}</td>
                   <td><div class="leave-bar-cell"><div class="leave-bar-bg"><div class="leave-bar-fg" style="width:${ratio}%"></div></div></div></td>
-                  <td>${used}/${e.annual_leave_granted}일</td>
+                  <td>${used}/${granted}일</td>
                 </tr>`;
               }).join('') || '<tr><td colspan="3">재직자가 없습니다.</td></tr>'}
             </tbody>
