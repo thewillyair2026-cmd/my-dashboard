@@ -19,8 +19,6 @@
   .panel{background:#fff;border:1px solid #E4E4E7;border-radius:14px;padding:18px 20px;margin-bottom:16px;}
   .panel h2{font-size:15px;margin:0 0 4px;}
   .panel .panel-note{font-size:11.5px;color:var(--willy-sub);margin:0 0 14px;}
-  .panel-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:4px;}
-  .period-select{font-family:inherit;font-size:12px;color:var(--willy-text);font-weight:600;padding:5px 10px;border:1px solid #E4E4E7;border-radius:8px;background:#fff;cursor:pointer;}
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
   .chan-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f4f4f5;}
   .chan-row:last-child{border-bottom:none;}
@@ -79,93 +77,94 @@
     const content = document.getElementById('content');
     try{
       const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-      const [{data:channel,error:e1},{data:naver,error:e2},{data:channelMonthly,error:e3}] = await Promise.all([
-        db.from('marketing_channel').select('*'),
+      const [{data:naver,error:e2},{data:channelMonthly,error:e3}] = await Promise.all([
         db.from('marketing_naver_ads').select('*'),
         db.from('marketing_channel_monthly').select('*')
       ]);
-      if(e1||e2||e3) throw (e1||e2||e3);
-      if(!channel?.length || !naver?.length || !channelMonthly?.length) throw new Error('데이터가 비어 있습니다.');
-      render(channel, naver, channelMonthly);
+      if(e2||e3) throw (e2||e3);
+      if(!naver?.length || !channelMonthly?.length) throw new Error('데이터가 비어 있습니다.');
+      let period = channelMonthly.map(r=>r.ym).sort().pop();
+      const periods = WillyShell.buildPeriodOptions(channelMonthly);
+      WillyShell.setPeriodFilter(periods, period, (p)=>{ period = p; render(naver, channelMonthly, period); });
+      render(naver, channelMonthly, period);
     }catch(err){
       content.innerHTML = `<div class="err">데이터를 불러오지 못했습니다.<br>${(err && err.message) || err}</div>`;
       console.error(err);
     }
   }
 
-  function render(channel, naver, channelMonthly){
-    const rows = channel.map(c=>({...c, rate: c.quotes ? c.contracts/c.quotes*100 : 0}));
-    const b2b = rows.filter(r=>r.is_b2b).sort((a,b)=>b.rate-a.rate);
-    const b2c = rows.filter(r=>!r.is_b2b).sort((a,b)=>b.rate-a.rate);
+  function periodLabel(period){
+    if(period==='ALL') return '전체기간';
+    if(period.indexOf('YEAR:')===0) return period.slice(5)+'년 전체';
+    return period;
+  }
 
-    const periods = buildPeriodOptions(channelMonthly);
-    const defaultPeriod = 'ALL';
-    const defaultAgg = aggregateChannel(channelMonthly, defaultPeriod);
-    const defaultB2c = defaultAgg.filter(r=>!r.is_b2b).sort((a,b)=>b.rate-a.rate);
-    const defaultB2b = defaultAgg.filter(r=>r.is_b2b).sort((a,b)=>b.rate-a.rate);
+  function render(naver, channelMonthly, period){
+    const rows = WillyShell.filterByPeriod(channelMonthly, period);
+    const b2bRows = rows.filter(r=>r.is_b2b);
+    const b2cRows = rows.filter(r=>!r.is_b2b);
 
     const totalQ = rows.reduce((s,r)=>s+r.quotes,0);
     const totalC = rows.reduce((s,r)=>s+r.contracts,0);
     const totalRev = rows.reduce((s,r)=>s+r.revenue,0);
     const totalRate = totalQ ? totalC/totalQ*100 : 0;
 
-    const b2bQ = b2b.reduce((s,r)=>s+r.quotes,0), b2bC = b2b.reduce((s,r)=>s+r.contracts,0);
-    const b2cQ = b2c.reduce((s,r)=>s+r.quotes,0), b2cC = b2c.reduce((s,r)=>s+r.contracts,0);
+    const b2bQ = b2bRows.reduce((s,r)=>s+r.quotes,0), b2bC = b2bRows.reduce((s,r)=>s+r.contracts,0);
+    const b2cQ = b2cRows.reduce((s,r)=>s+r.quotes,0), b2cC = b2cRows.reduce((s,r)=>s+r.contracts,0);
     const b2bRate = b2bQ ? b2bC/b2bQ*100 : 0;
     const b2cRate = b2cQ ? b2cC/b2cQ*100 : 0;
 
-    const topChannel = [...rows].sort((a,b)=>b.quotes-a.quotes)[0];
+    const agg = aggregateChannel(rows);
+    const aggB2c = agg.filter(r=>!r.is_b2b).sort((a,b)=>b.rate-a.rate);
+    const aggB2b = agg.filter(r=>r.is_b2b).sort((a,b)=>b.rate-a.rate);
+    const topChannel = [...agg].sort((a,b)=>b.quotes-a.quotes)[0];
 
     const naverSpendTotal = naver.reduce((s,n)=>s+n.spend,0);
     const naverFee = naverSpendTotal * 0.1;
     const naverMonth = naver[0]?.month || '';
 
+    const label = periodLabel(period);
     const content = document.getElementById('content');
     content.innerHTML = `
       <div class="cards">
         <div class="card">
-          <div class="label">전체 견적→계약 전환율</div>
+          <div class="label">${label} 견적→계약 전환율</div>
           <div class="value big">${pct(totalRate)}%</div>
           <div class="sub">견적 ${won(totalQ)}건 · 계약 ${won(totalC)}건</div>
         </div>
         <div class="card">
-          <div class="label">총 계약금액</div>
+          <div class="label">${label} 계약금액</div>
           <div class="value">${eok(totalRev)}</div>
           <div class="sub">전체 채널 합계</div>
         </div>
         <div class="card">
           <div class="label">B2B vs B2C 전환율</div>
           <div class="value">${pct(b2bRate)}% <span style="font-size:14px;color:var(--willy-sub);">vs</span> ${pct(b2cRate)}%</div>
-          <div class="sub">인테리어·부동산 제휴가 ${(b2bRate/b2cRate).toFixed(1)}배 높음</div>
+          <div class="sub">${b2cRate?`인테리어·부동산 제휴가 ${(b2bRate/b2cRate).toFixed(1)}배 높음`:'해당 기간 B2C 데이터 없음'}</div>
         </div>
         <div class="card">
           <div class="label">최다 유입 채널</div>
-          <div class="value">${topChannel.channel}</div>
-          <div class="sub">견적 ${won(topChannel.quotes)}건 (전체 ${pct(topChannel.quotes/totalQ*100)}%)</div>
+          <div class="value">${topChannel?topChannel.channel:'-'}</div>
+          <div class="sub">${topChannel?`견적 ${won(topChannel.quotes)}건 (전체 ${pct(topChannel.quotes/totalQ*100)}%)`:'데이터 없음'}</div>
         </div>
       </div>
 
       <div class="grid2">
         <div class="panel">
-          <div class="panel-head">
-            <h2>B2C 채널 전환율</h2>
-            <select class="period-select" id="channel-period-select">
-              ${periods.map(p=>`<option value="${p.value}"${p.value===defaultPeriod?' selected':''}>${p.label}</option>`).join('')}
-            </select>
-          </div>
-          <p class="panel-note">일반 소비자 유입 채널 · 전환율 높은 순</p>
-          <div id="b2c-channel-body">${channelBars(defaultB2c, 'b2c')}</div>
+          <h2>B2C 채널 전환율</h2>
+          <p class="panel-note">${label} · 일반 소비자 유입 채널 · 전환율 높은 순</p>
+          ${channelBars(aggB2c, 'b2c')}
         </div>
         <div class="panel">
           <h2>B2B 채널 전환율</h2>
-          <p class="panel-note">인테리어·부동산·에어컨설팅 제휴 채널 · 왼쪽과 같은 기간 · 물량은 적지만 전환율 높음</p>
-          <div id="b2b-channel-body">${channelBars(defaultB2b, 'b2b')}</div>
+          <p class="panel-note">${label} · 인테리어·부동산·에어컨설팅 제휴 채널 · 물량은 적지만 전환율 높음</p>
+          ${channelBars(aggB2b, 'b2b')}
         </div>
       </div>
 
       <div class="panel">
         <h2>네이버 유료광고 (${naverMonth})</h2>
-        <p class="panel-note">파워링크·쇼핑검색은 블로그/스마트스토어로 랜딩되는 구조라 위 채널 표와는 분리 집계됩니다</p>
+        <p class="panel-note">파워링크·쇼핑검색은 블로그/스마트스토어로 랜딩되는 구조라 위 채널 표와는 분리 집계됩니다 · 상단 기간 필터와 무관하게 최신월 고정 표시</p>
         <div class="table-scroll">
         <table>
           <thead><tr><th>상품</th><th>노출</th><th>클릭</th><th>광고비</th><th>전환</th><th>전환매출</th></tr></thead>
@@ -194,7 +193,7 @@
         <div class="insight-list">
           <div class="insight-item">
             <div class="num">1</div>
-            <div class="txt"><strong>인테리어·부동산 채널 확대 검토</strong><span>전환율이 B2C 평균의 ${(b2bRate/b2cRate).toFixed(1)}배 — 물량 대비 효율 최고</span></div>
+            <div class="txt"><strong>인테리어·부동산 채널 확대 검토</strong><span>${b2cRate?`전환율이 B2C 평균의 ${(b2bRate/b2cRate).toFixed(1)}배 — 물량 대비 효율 최고`:'해당 기간 B2C 비교 데이터 없음'}</span></div>
           </div>
           <div class="insight-item">
             <div class="num">2</div>
@@ -207,34 +206,9 @@
         </div>
       </div>
     `;
-
-    document.getElementById('channel-period-select').addEventListener('change', (e)=>{
-      const period = e.target.value;
-      const agg = aggregateChannel(channelMonthly, period);
-      const aggB2c = agg.filter(r=>!r.is_b2b).sort((a,b)=>b.rate-a.rate);
-      const aggB2b = agg.filter(r=>r.is_b2b).sort((a,b)=>b.rate-a.rate);
-      document.getElementById('b2c-channel-body').innerHTML = channelBars(aggB2c, 'b2c');
-      document.getElementById('b2b-channel-body').innerHTML = channelBars(aggB2b, 'b2b');
-    });
   }
 
-  function buildPeriodOptions(channelMonthly){
-    const yms = [...new Set(channelMonthly.map(r=>r.ym))].sort();
-    const years = [...new Set(yms.map(y=>y.split('.')[0]))];
-    const opts = [{value:'ALL', label:'전체기간'}];
-    years.forEach(y=>opts.push({value:'YEAR:'+y, label:y+'년 전체'}));
-    yms.forEach(ym=>opts.push({value:ym, label:ym}));
-    return opts;
-  }
-
-  function aggregateChannel(channelMonthly, period){
-    let rows = channelMonthly;
-    if(period.startsWith('YEAR:')){
-      const y = period.slice(5);
-      rows = rows.filter(r=>r.ym.startsWith(y+'.'));
-    } else if(period!=='ALL'){
-      rows = rows.filter(r=>r.ym===period);
-    }
+  function aggregateChannel(rows){
     const agg = {};
     rows.forEach(r=>{
       if(!agg[r.channel]) agg[r.channel] = {channel:r.channel, quotes:0, contracts:0, revenue:0, is_b2b:r.is_b2b};

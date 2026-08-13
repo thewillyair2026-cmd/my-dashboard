@@ -101,5 +101,44 @@
     });
   }
 
-  window.WillyShell = { mount: mount, setMonthFilter: setMonthFilter };
+  // rows: {ym:'2026.08', ...}[] — 데이터에 존재하는 연월 목록으로 전체기간/연도별/월별 옵션 생성
+  function buildPeriodOptions(rows){
+    var yms = Array.from(new Set(rows.map(function(r){ return r.ym; }))).sort();
+    var years = Array.from(new Set(yms.map(function(y){ return y.split('.')[0]; })));
+    var opts = [{value:'ALL', label:'전체기간'}];
+    years.forEach(function(y){ opts.push({value:'YEAR:'+y, label:y+'년 전체'}); });
+    yms.forEach(function(ym){ opts.push({value:ym, label:ym+' 실적'}); });
+    return opts;
+  }
+
+  // periods: buildPeriodOptions()의 결과 / selected: 현재 선택값 / onChange: function(period){...}
+  function setPeriodFilter(periods, selected, onChange){
+    var slot = document.getElementById('willy-month-filter');
+    if(!slot) return;
+    var opts = periods.map(function(p){
+      return '<option value="'+p.value+'"'+(p.value===selected?' selected':'')+'>'+p.label+'</option>';
+    }).join('');
+    slot.outerHTML = '<select class="range" id="willy-month-filter">'+opts+'</select>';
+    document.getElementById('willy-month-filter').addEventListener('change', function(e){
+      onChange(e.target.value);
+    });
+  }
+
+  // rows: {ym:'2026.08', ...}[] / period: 'ALL' | 'YEAR:2026' | '2026.08'
+  function filterByPeriod(rows, period){
+    if(period === 'ALL') return rows;
+    if(period.indexOf('YEAR:') === 0){
+      var y = period.slice(5);
+      return rows.filter(function(r){ return r.ym.indexOf(y+'.') === 0; });
+    }
+    return rows.filter(function(r){ return r.ym === period; });
+  }
+
+  window.WillyShell = {
+    mount: mount,
+    setMonthFilter: setMonthFilter,
+    buildPeriodOptions: buildPeriodOptions,
+    setPeriodFilter: setPeriodFilter,
+    filterByPeriod: filterByPeriod
+  };
 })();

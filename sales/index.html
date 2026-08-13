@@ -22,8 +22,6 @@
   .panel h2{font-size:15px;margin:0 0 4px;}
   .panel .panel-note{font-size:11.5px;color:var(--willy-sub);margin:0 0 14px;}
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
-  .panel-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:4px;}
-  .period-select{font-family:inherit;font-size:12px;color:var(--willy-text);font-weight:600;padding:5px 10px;border:1px solid #E4E4E7;border-radius:8px;background:#fff;cursor:pointer;}
   .rank-row{display:flex;align-items:center;gap:10px;padding:8px 0;}
   .rank-row .name{width:110px;font-size:13px;flex-shrink:0;}
   .rank-bar-bg{flex:1;background:#f4f4f5;border-radius:999px;height:10px;overflow:hidden;}
@@ -78,20 +76,20 @@
     const content = document.getElementById('content');
     try{
       const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-      const [{data:monthly,error:e1},{data:pipeline,error:e2},{data:rank,error:e3},{data:dealType,error:e4},{data:dealMonthly,error:e5},{data:rankMonthly,error:e6}] = await Promise.all([
+      const [{data:monthly,error:e1},{data:pipelineMonthly,error:e2},{data:rank,error:e3},{data:dealMonthly,error:e5},{data:rankMonthly,error:e6}] = await Promise.all([
         db.from('sales_monthly').select('*').order('sort_order',{ascending:true}),
-        db.from('sales_pipeline').select('*').order('sort_order',{ascending:true}),
+        db.from('sales_pipeline_monthly').select('*'),
         db.from('sales_rank').select('*'),
-        db.from('sales_deal_type').select('*'),
         db.from('sales_deal_type_monthly').select('*').order('sort_order',{ascending:true}),
         db.from('sales_rank_monthly').select('*')
       ]);
-      const err = e1||e2||e3||e4||e5||e6;
+      const err = e1||e2||e3||e5||e6;
       if(err) throw err;
-      if(!monthly?.length||!pipeline?.length||!rank?.length||!dealType?.length||!dealMonthly?.length||!rankMonthly?.length) throw new Error('데이터가 비어 있습니다.');
-      let selectedYm = monthly[monthly.length-1].ym;
-      WillyShell.setMonthFilter(monthly.map(m=>m.ym), selectedYm, (m)=>{ selectedYm = m; render(monthly, pipeline, rank, dealType, dealMonthly, rankMonthly, selectedYm); });
-      render(monthly, pipeline, rank, dealType, dealMonthly, rankMonthly, selectedYm);
+      if(!monthly?.length||!pipelineMonthly?.length||!rank?.length||!dealMonthly?.length||!rankMonthly?.length) throw new Error('데이터가 비어 있습니다.');
+      let period = monthly[monthly.length-1].ym;
+      const periods = WillyShell.buildPeriodOptions(monthly);
+      WillyShell.setPeriodFilter(periods, period, (p)=>{ period = p; render(monthly, pipelineMonthly, rank, dealMonthly, rankMonthly, period); });
+      render(monthly, pipelineMonthly, rank, dealMonthly, rankMonthly, period);
     }catch(err){
       content.innerHTML = `<div class="err">데이터를 불러오지 못했습니다.<br>${(err && err.message) || err}</div>`;
       console.error(err);
@@ -100,33 +98,79 @@
 
   const ACTIVE_STAFF = new Set(['신제호 과장','오형민 대리','정현수 대표','민대기 대리','김지연 주임','서은지 주임','이유진 사원','이지은 대리']);
 
-  function render(monthly, pipeline, rank, dealType, dealMonthly, rankMonthly, selectedYm){
-    const idx = monthly.findIndex(m=>m.ym===selectedYm);
-    const thisM = monthly[idx>=0?idx:monthly.length-1];
-    const achieveRate = thisM.target ? thisM.revenue/thisM.target*100 : 0;
+  function periodLabel(period){
+    if(period==='ALL') return '전체기간';
+    if(period.indexOf('YEAR:')===0) return period.slice(5)+'년 전체';
+    return period;
+  }
 
-    // 최근 12개월(있는 만큼) 누적
+  function computeGrowth(monthly, period){
+    if(period!=='ALL' && period.indexOf('YEAR:')!==0){
+      const idx = monthly.findIndex(m=>m.ym===period);
+      const thisM = monthly[idx];
+      const prevM = idx>0 ? monthly[idx-1] : null;
+      if(!prevM || !prevM.revenue) return {rate:null, label:'전월 데이터 없음'};
+      const rate = (thisM.revenue-prevM.revenue)/prevM.revenue*100;
+      return {rate, label:`${prevM.ym} 대비 ${period}`};
+    }
+    const rows = WillyShell.filterByPeriod(monthly, period);
+    if(!rows.length) return {rate:null, label:'데이터 없음'};
+    const latestYear = Math.max(...rows.map(r=>parseInt(r.ym.split('.')[0])));
+    const curRows = rows.filter(r=>parseInt(r.ym.split('.')[0])===latestYear);
+    const monthNums = new Set(curRows.map(r=>r.ym.split('.')[1]));
+    const prevYear = latestYear-1;
+    const prevRows = monthly.filter(r=>{
+      const [y,m] = r.ym.split('.');
+      return parseInt(y)===prevYear && monthNums.has(m);
+    });
+    if(!prevRows.length) return {rate:null, label:`${prevYear}년 동기 데이터 없음`};
+    const prevMonthNums = new Set(prevRows.map(r=>r.ym.split('.')[1]));
+    const curOverlap = curRows.filter(r=>prevMonthNums.has(r.ym.split('.')[1]));
+    const curSum = curOverlap.reduce((s,r)=>s+r.revenue,0);
+    const prevSum = prevRows.reduce((s,r)=>s+r.revenue,0);
+    if(!prevSum) return {rate:null, label:`${prevYear}년 동기 데이터 없음`};
+    const rate = (curSum-prevSum)/prevSum*100;
+    return {rate, label:`${prevYear}년 동기(${prevMonthNums.size}개월) 대비`};
+  }
+
+  function render(monthly, pipelineMonthly, rank, dealMonthly, rankMonthly, period){
+    const rows = WillyShell.filterByPeriod(monthly, period);
+    const periodRevenue = rows.reduce((s,r)=>s+r.revenue,0);
+    const periodTarget = rows.reduce((s,r)=>s+r.target,0);
+    const achieveRate = periodTarget ? periodRevenue/periodTarget*100 : 0;
+
+    // 최근 12개월(있는 만큼) 누적 — 선택 기간과 무관한 고정 참고 지표
     const last12 = monthly.slice(-12);
     const cum12 = last12.reduce((s,m)=>s+m.revenue,0);
 
-    const totalDeal = dealType.reduce((s,d)=>s+d.revenue,0);
-    const b2b = dealType.find(d=>d.kind==='B2B') || {revenue:0,count:0};
-    const b2bRate = totalDeal ? b2b.revenue/totalDeal*100 : 0;
+    const dealRows = WillyShell.filterByPeriod(dealMonthly, period);
+    const b2bRev = dealRows.reduce((s,r)=>s+r.b2b_revenue,0);
+    const b2cRev = dealRows.reduce((s,r)=>s+r.b2c_revenue,0);
+    const b2bCount = dealRows.reduce((s,r)=>s+r.b2b_count,0);
+    const totalDealRev = b2bRev+b2cRev;
+    const b2bRate = totalDealRev ? b2bRev/totalDealRev*100 : 0;
 
-    const prevM = idx>0 ? monthly[idx-1] : null;
-    const momRate = prevM && prevM.revenue ? (thisM.revenue-prevM.revenue)/prevM.revenue*100 : null;
+    const growth = computeGrowth(monthly, period);
 
-    const periods = buildPeriodOptions(rankMonthly);
-    const defaultPeriod = 'ALL';
+    const pipeRows = WillyShell.filterByPeriod(pipelineMonthly, period);
+    const pipeline = [
+      {stage:'견적', count:pipeRows.reduce((s,r)=>s+r.quotes,0)},
+      {stage:'계약', count:pipeRows.reduce((s,r)=>s+r.contracts,0)},
+      {stage:'설치완료', count:pipeRows.reduce((s,r)=>s+r.installs,0)}
+    ];
+
+    const label = periodLabel(period);
+    const isSingleMonth = period!=='ALL' && period.indexOf('YEAR:')!==0;
+    const selectedYm = isSingleMonth ? period : monthly[monthly.length-1].ym;
 
     const content = document.getElementById('content');
     content.innerHTML = `
       <div class="cards">
         <div class="card">
-          <div class="label">${selectedYm} 계약금액</div>
-          <div class="value big">${eok(thisM.revenue)}</div>
+          <div class="label">${label} 계약금액</div>
+          <div class="value big">${eok(periodRevenue)}</div>
           <div class="barbg"><div class="barfg" style="width:${Math.min(achieveRate,100)}%"></div></div>
-          <div class="sub">목표 ${eok(thisM.target)} 대비 ${pct(achieveRate)}%</div>
+          <div class="sub">목표 ${eok(periodTarget)} 대비 ${pct(achieveRate)}%</div>
         </div>
         <div class="card">
           <div class="label">최근 12개월 누적</div>
@@ -136,12 +180,12 @@
         <div class="card">
           <div class="label">B2B 매출 비중</div>
           <div class="value">${pct(b2bRate)}%</div>
-          <div class="sub">${eok(b2b.revenue)} · ${won(b2b.count)}건 (인테리어·부동산 제휴)</div>
+          <div class="sub">${eok(b2bRev)} · ${won(b2bCount)}건 (인테리어·부동산·에어컨설팅 제휴)</div>
         </div>
         <div class="card">
-          <div class="label">전월 대비 증감률</div>
-          <div class="value" style="color:${momRate===null?'var(--willy-text)':(momRate>=0?'#16a34a':'#dc2626')}">${momRate===null?'-':(momRate>=0?'+':'')+pct(momRate)+'%'}</div>
-          <div class="sub">${prevM?`${prevM.ym} 대비 ${selectedYm}`:'전월 데이터 없음'}</div>
+          <div class="label">${isSingleMonth?'전월 대비 증감률':'전년 동기 대비 증감률'}</div>
+          <div class="value" style="color:${growth.rate===null?'var(--willy-text)':(growth.rate>=0?'#16a34a':'#dc2626')}">${growth.rate===null?'-':(growth.rate>=0?'+':'')+pct(growth.rate)+'%'}</div>
+          <div class="sub">${growth.label}</div>
         </div>
       </div>
 
@@ -153,62 +197,38 @@
         </div>
         <div class="panel">
           <h2>영업 퍼널</h2>
-          <p class="panel-note">전체 기간 누적 · 계약~설치완료 사이 이탈 = 취소</p>
+          <p class="panel-note">${label} · 견적일/계약일/설치일 각각 기준 (동일 건 코호트 아님)</p>
           ${funnel(pipeline)}
         </div>
       </div>
 
       <div class="grid2">
         <div class="panel">
-          <div class="panel-head">
-            <h2>담당자별 실적</h2>
-            <select class="period-select" id="period-select">
-              ${periods.map(p=>`<option value="${p.value}"${p.value===defaultPeriod?' selected':''}>${p.label}</option>`).join('')}
-            </select>
-          </div>
-          <p class="panel-note" id="person-note">전체기간은 현재 재직 중인 담당자만 · 월/연도 선택 시 퇴사자 포함</p>
-          <div id="person-rank-body">${personRankList(aggregateRank(rankMonthly,'person',defaultPeriod))}</div>
+          <h2>담당자별 실적</h2>
+          <p class="panel-note">${period==='ALL' ? '전체기간은 현재 재직 중인 담당자만 · 월/연도 선택 시 퇴사자 포함' : '선택한 기간에 활동한 담당자 전체(퇴사자 포함) 표시'}</p>
+          <div id="person-rank-body">${personRankList(aggregateRank(rankMonthly,'person',period))}</div>
         </div>
         <div class="panel">
           <h2>브랜드별 실적</h2>
           <p class="panel-note">실외기 모델코드 기준 근사 분류 · 왼쪽과 같은 기간</p>
-          <div id="brand-rank-body">${brandRankList(aggregateRank(rankMonthly,'brand',defaultPeriod))}</div>
+          <div id="brand-rank-body">${brandRankList(aggregateRank(rankMonthly,'brand',period))}</div>
         </div>
       </div>
 
       <div class="panel">
         <h2>B2B / B2C 월별 계약 추이</h2>
-        <p class="panel-note">인테리어·부동산 제휴 채널 = B2B, 나머지 = B2C</p>
+        <p class="panel-note">인테리어·부동산·에어컨설팅 제휴 채널 = B2B, 나머지 = B2C</p>
         ${b2bChart(dealMonthly)}
       </div>
     `;
-
-    document.getElementById('period-select').addEventListener('change', (e)=>{
-      const period = e.target.value;
-      document.getElementById('person-rank-body').innerHTML = personRankList(aggregateRank(rankMonthly,'person',period));
-      document.getElementById('brand-rank-body').innerHTML = brandRankList(aggregateRank(rankMonthly,'brand',period));
-      document.getElementById('person-note').textContent = period==='ALL' ? '전체기간은 현재 재직 중인 담당자만 · 월/연도 선택 시 퇴사자 포함' : '선택한 기간에 활동한 담당자 전체(퇴사자 포함) 표시';
-    });
-  }
-
-  function buildPeriodOptions(rankMonthly){
-    const yms = [...new Set(rankMonthly.map(r=>r.ym))].sort();
-    const years = [...new Set(yms.map(y=>y.split('.')[0]))];
-    const opts = [{value:'ALL', label:'전체기간'}];
-    years.forEach(y=>opts.push({value:'YEAR:'+y, label:y+'년 전체'}));
-    yms.forEach(ym=>opts.push({value:ym, label:ym}));
-    return opts;
   }
 
   function aggregateRank(rankMonthly, kind, period){
     let rows = rankMonthly.filter(r=>r.kind===kind);
     if(period==='ALL'){
       if(kind==='person') rows = rows.filter(r=>ACTIVE_STAFF.has(r.name));
-    } else if(period.startsWith('YEAR:')){
-      const y = period.slice(5);
-      rows = rows.filter(r=>r.ym.startsWith(y+'.'));
     } else {
-      rows = rows.filter(r=>r.ym===period);
+      rows = WillyShell.filterByPeriod(rows, period);
     }
     const agg = {};
     rows.forEach(r=>{

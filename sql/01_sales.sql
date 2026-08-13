@@ -4,6 +4,7 @@
 
 drop table if exists sales_rank;
 drop table if exists sales_pipeline;
+drop table if exists sales_pipeline_monthly;
 drop table if exists sales_deal_type;
 drop table if exists sales_deal_type_monthly;
 drop table if exists sales_rank_monthly;
@@ -32,17 +33,31 @@ insert into sales_monthly (sort_order, ym, quotes, revenue, target) values
   (11,'2026.07',478,  850454936,  1000000000),
   (12,'2026.08',180,  249055060,  1000000000);
 
--- 영업 퍼널: 견적 → 계약 → 설치완료 (전체 기간 누적, 기계설치일 존재 여부로 설치완료 판정)
-create table sales_pipeline (
+-- 영업 퍼널 월별: 견적 제출월 / 계약 체결월 / 설치완료월 각각 기준 (기간 선택 필터용)
+-- 세 값은 같은 건을 추적하는 코호트가 아니라, 각 월에 발생한 이벤트 건수입니다 (견적일/계약일/기계설치일 각각 기준)
+create table sales_pipeline_monthly (
   id bigint primary key generated always as identity,
-  sort_order int not null,
-  stage text not null,
-  count bigint not null
+  ym text not null,
+  quotes int not null,
+  contracts int not null,
+  installs int not null
 );
-insert into sales_pipeline (sort_order, stage, count) values
-  (1,'견적',5035),
-  (2,'계약',1638),
-  (3,'설치완료',1593);
+insert into sales_pipeline_monthly (ym, quotes, contracts, installs) values
+  ('2025.09', 29, 8, 1),
+  ('2025.10', 260, 84, 26),
+  ('2025.11', 316, 111, 81),
+  ('2025.12', 342, 119, 86),
+  ('2026.01', 472, 173, 128),
+  ('2026.02', 480, 140, 152),
+  ('2026.03', 657, 219, 197),
+  ('2026.04', 657, 233, 189),
+  ('2026.05', 570, 158, 201),
+  ('2026.06', 591, 167, 177),
+  ('2026.07', 478, 166, 146),
+  ('2026.08', 180, 51, 114);
+
+alter table sales_pipeline_monthly enable row level security;
+create policy "read" on sales_pipeline_monthly for select to anon using (true);
 
 -- 거래유형별(채널 기반: 인테리어·부동산=B2B, 나머지=B2C)
 create table sales_deal_type (
@@ -75,27 +90,29 @@ insert into sales_rank (kind, name, amount, team) values
   ('brand','삼성',4102428586,null),
   ('brand','LG', 4030108965,null);
 
--- B2B/B2C 월별 계약 건수 (채널 기반 분류)
+-- B2B/B2C 월별 계약 건수 + 계약금액 (채널 기반 분류: 인테리어·부동산·에어컨설팅=B2B)
 create table sales_deal_type_monthly (
   id bigint primary key generated always as identity,
   sort_order int not null,
   ym text not null,
   b2b_count int not null,
-  b2c_count int not null
+  b2c_count int not null,
+  b2b_revenue bigint not null default 0,
+  b2c_revenue bigint not null default 0
 );
-insert into sales_deal_type_monthly (sort_order, ym, b2b_count, b2c_count) values
-  (1,'2025.09', 3,  5),
-  (2,'2025.10', 19, 65),
-  (3,'2025.11', 25, 86),
-  (4,'2025.12', 24, 96),
-  (5,'2026.01', 39, 134),
-  (6,'2026.02', 27, 113),
-  (7,'2026.03', 35, 185),
-  (8,'2026.04', 39, 197),
-  (9,'2026.05', 37, 123),
-  (10,'2026.06',52, 115),
-  (11,'2026.07',36, 131),
-  (12,'2026.08',14, 37);
+insert into sales_deal_type_monthly (sort_order, ym, b2b_count, b2c_count, b2b_revenue, b2c_revenue) values
+  (1,'2025.09', 3,  5,  12263636,  18986362),
+  (2,'2025.10', 19, 65, 92019088,  319505424),
+  (3,'2025.11', 25, 86, 114331358, 402530511),
+  (4,'2025.12', 24, 96, 113401627, 457054495),
+  (5,'2026.01', 39, 134,205460898, 643898723),
+  (6,'2026.02', 27, 113,159090446, 524759501),
+  (7,'2026.03', 35, 185,188395443, 924626811),
+  (8,'2026.04', 39, 197,191134988, 981289516),
+  (9,'2026.05', 37, 123,187969865, 619253293),
+  (10,'2026.06',52, 115,247036342, 586796958),
+  (11,'2026.07',36, 131,179709079, 665754948),
+  (12,'2026.08',14, 37, 76572720,  172482340);
 
 alter table sales_deal_type_monthly enable row level security;
 create policy "read" on sales_deal_type_monthly for select to anon using (true);
@@ -215,10 +232,8 @@ alter table sales_rank_monthly enable row level security;
 create policy "read" on sales_rank_monthly for select to anon using (true);
 
 alter table sales_monthly   enable row level security;
-alter table sales_pipeline  enable row level security;
 alter table sales_deal_type enable row level security;
 alter table sales_rank      enable row level security;
 create policy "read" on sales_monthly   for select to anon using (true);
-create policy "read" on sales_pipeline  for select to anon using (true);
 create policy "read" on sales_deal_type for select to anon using (true);
 create policy "read" on sales_rank      for select to anon using (true);
