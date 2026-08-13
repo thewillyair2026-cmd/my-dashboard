@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>영업 대시보드 · WILLY</title>
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
+<link rel="stylesheet" href="../shared/theme.css" />
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../shared/shell.js"></script>
+<style>
+  :root{ --accent:#1338BE; --accent-light:#DFEAFF; }
+  .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;}
+  .card{background:#fff;border:1px solid #E4E4E7;border-radius:14px;padding:16px 18px;}
+  .card .label{font-size:12px;color:var(--willy-sub);margin-bottom:8px;}
+  .card .value{font-size:26px;font-weight:700;letter-spacing:-0.5px;}
+  .card .value.big{font-size:30px;color:var(--accent);}
+  .card .sub{font-size:12px;color:var(--willy-sub);margin-top:6px;}
+  .card .barbg{background:#f4f4f5;border-radius:999px;height:6px;margin-top:10px;overflow:hidden;}
+  .card .barfg{background:var(--accent);height:100%;border-radius:999px;}
+  .panel{background:#fff;border:1px solid #E4E4E7;border-radius:14px;padding:18px 20px;margin-bottom:16px;}
+  .panel h2{font-size:15px;margin:0 0 14px;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  .rank-row{display:flex;align-items:center;gap:10px;padding:8px 0;}
+  .rank-row .name{width:130px;font-size:13px;flex-shrink:0;display:flex;align-items:center;gap:6px;}
+  .team-tag{font-size:10px;font-weight:700;padding:1px 6px;border-radius:999px;}
+  .team-tag.b2b{background:var(--willy-navy);color:#fff;}
+  .team-tag.b2c{background:#f4f4f5;color:var(--willy-sub);}
+  .rank-bar-bg{flex:1;background:#f4f4f5;border-radius:999px;height:10px;overflow:hidden;}
+  .rank-bar-fg{height:100%;background:var(--accent);border-radius:999px;}
+  .rank-row .amt{width:70px;text-align:right;font-size:13px;font-weight:600;flex-shrink:0;}
+  .brand-row .rank-bar-fg.lg{background:var(--willy-lg);}
+  .brand-row .rank-bar-fg.sm{background:var(--willy-sm);}
+  .funnel-step{margin-bottom:2px;}
+  .funnel-bar{background:var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:space-between;padding:10px 14px;color:#fff;font-size:13px;}
+  .funnel-conv{text-align:center;font-size:11px;color:var(--willy-sub);padding:4px 0;}
+  .funnel-final{margin-top:10px;padding:10px;background:var(--accent-light);border-radius:10px;text-align:center;font-size:13px;}
+  .funnel-final b{color:var(--accent);}
+  .loading,.err{padding:40px;text-align:center;color:var(--willy-sub);font-size:13px;}
+  .err{color:#dc2626;}
+  @media (max-width:860px){
+    .cards{grid-template-columns:repeat(2,1fr);}
+    .grid2{grid-template-columns:1fr;}
+  }
+</style>
+</head>
+<body>
+<div id="shell-root"></div>
+<div id="content"><div class="loading">불러오는 중...</div></div>
+
+<script>
+  // ── Supabase 연결 정보 ─────────────────────────────
+  const SUPABASE_URL = 'https://gsqurjwbdkenmjwspucq.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdzcXVyandiZGtlbm1qd3NwdWNxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY1NTY3MjIsImV4cCI6MjEwMjEzMjcyMn0.VWwpg2uLfFWquknfnKjsj6a_-AfTdQJS8LVw9dSQ0xo';
+  // ───────────────────────────────────────────────────
+
+  WillyShell.mount({active:'sales', title:'영업 대시보드', subtitle:'답하는 질문 — 이번 달 목표까지 얼마나 남았나? B2B/B2C 어디서 벌고 있나?'});
+
+  const { createClient } = supabase;
+  const won = n => Math.round(n).toLocaleString('ko-KR');
+  const pct = n => (Math.round(n*10)/10).toLocaleString('ko-KR');
+
+  async function main(){
+    const content = document.getElementById('content');
+    if(SUPABASE_URL === 'YOUR_PROJECT_URL' || SUPABASE_ANON_KEY === 'YOUR_ANON_KEY'){
+      content.innerHTML = `<div class="err">아직 Supabase 연결 정보가 입력되지 않았습니다.</div>`;
+      return;
+    }
+    try{
+      const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      const [{data:monthly,error:e1},{data:pipeline,error:e2},{data:rank,error:e3},{data:dealType,error:e4}] = await Promise.all([
+        db.from('sales_monthly').select('*').order('sort_order',{ascending:true}),
+        db.from('sales_pipeline').select('*').order('sort_order',{ascending:true}),
+        db.from('sales_rank').select('*'),
+        db.from('sales_deal_type').select('*')
+      ]);
+      const err = e1||e2||e3||e4;
+      if(err) throw err;
+      if(!monthly?.length||!pipeline?.length||!rank?.length||!dealType?.length) throw new Error('데이터가 비어 있습니다.');
+      let selectedMonth = monthly[monthly.length-1].month;
+      WillyShell.setMonthFilter(monthly.map(m=>m.month), selectedMonth, (m)=>{ selectedMonth = m; render(monthly, pipeline, rank, dealType, selectedMonth); });
+      render(monthly, pipeline, rank, dealType, selectedMonth);
+    }catch(err){
+      content.innerHTML = `<div class="err">데이터를 불러오지 못했습니다.<br>${(err && err.message) || err}</div>`;
+      console.error(err);
+    }
+  }
+
+  function render(monthly, pipeline, rank, dealType, selectedMonth){
+    const idx = monthly.findIndex(m=>m.month===selectedMonth);
+    const thisM = monthly[idx>=0?idx:monthly.length-1];
+    const achieveRate = thisM.target ? thisM.revenue/thisM.target*100 : 0;
+    const remain = thisM.target - thisM.revenue;
+    const contractCount = pipeline[pipeline.length-1].count;
+
+    const totalDeal = dealType.reduce((s,d)=>s+d.revenue,0);
+    const b2b = dealType.find(d=>d.kind==='B2B') || {revenue:0,count:0};
+    const b2bRate = totalDeal ? b2b.revenue/totalDeal*100 : 0;
+
+    const persons = rank.filter(r=>r.kind==='person').sort((a,b)=>b.amount-a.amount);
+    const brands = rank.filter(r=>r.kind==='brand').sort((a,b)=>b.amount-a.amount);
+
+    const content = document.getElementById('content');
+    content.innerHTML = `
+      <div class="cards">
+        <div class="card">
+          <div class="label">이번 달 매출</div>
+          <div class="value big">${won(thisM.revenue)}만원</div>
+          <div class="barbg"><div class="barfg" style="width:${Math.min(achieveRate,100)}%"></div></div>
+          <div class="sub">목표 대비 ${pct(achieveRate)}%</div>
+        </div>
+        <div class="card">
+          <div class="label">이번 달 목표</div>
+          <div class="value">${won(thisM.target)}만원</div>
+          <div class="sub">${remain>0 ? `${won(remain)}만원 남음` : `${won(-remain)}만원 초과 달성`}</div>
+        </div>
+        <div class="card">
+          <div class="label">B2B 매출 비중</div>
+          <div class="value">${pct(b2bRate)}%</div>
+          <div class="sub">${won(b2b.revenue)}만원 · ${b2b.count}건 (부동산·인테리어 등)</div>
+        </div>
+        <div class="card">
+          <div class="label">계약 건수</div>
+          <div class="value">${won(contractCount)}건</div>
+          <div class="sub">이번 달 파이프라인 최종 단계</div>
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="panel">
+          <h2>월별 매출</h2>
+          ${revenueChart(monthly, thisM.month)}
+        </div>
+        <div class="panel">
+          <h2>영업 단계 깔때기</h2>
+          ${funnel(pipeline)}
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="panel">
+          <h2>담당자별 실적</h2>
+          ${personRankList(persons)}
+        </div>
+        <div class="panel">
+          <h2>브랜드별 실적</h2>
+          ${brandRankList(brands)}
+        </div>
+      </div>
+    `;
+  }
+
+  function personRankList(items){
+    const max = Math.max(...items.map(i=>i.amount));
+    return items.map(i=>`
+      <div class="rank-row">
+        <div class="name">${i.name}<span class="team-tag ${i.team==='B2B'?'b2b':'b2c'}">${i.team||''}</span></div>
+        <div class="rank-bar-bg"><div class="rank-bar-fg" style="width:${i.amount/max*100}%"></div></div>
+        <div class="amt">${won(i.amount)}</div>
+      </div>`).join('');
+  }
+
+  function brandRankList(items){
+    const max = Math.max(...items.map(i=>i.amount));
+    return items.map(i=>{
+      const isLG = i.name.includes('LG');
+      return `<div class="rank-row brand-row">
+        <div class="name">${i.name}</div>
+        <div class="rank-bar-bg"><div class="rank-bar-fg ${isLG?'lg':'sm'}" style="width:${i.amount/max*100}%"></div></div>
+        <div class="amt">${won(i.amount)}</div>
+      </div>`;
+    }).join('');
+  }
+
+  function funnel(pipeline){
+    const maxCount = pipeline[0].count;
+    let html = '';
+    pipeline.forEach((p,i)=>{
+      const widthPct = 40 + (p.count/maxCount)*60;
+      html += `<div class="funnel-step">
+        <div class="funnel-bar" style="width:${widthPct}%;margin:0 auto;">
+          <span>${p.stage}</span><span>${won(p.count)}건</span>
+        </div>
+      </div>`;
+      if(i < pipeline.length-1){
+        const conv = pipeline[i+1].count/p.count*100;
+        html += `<div class="funnel-conv">↓ 전환율 ${pct(conv)}%</div>`;
+      }
+    });
+    const finalRate = pipeline[pipeline.length-1].count/pipeline[0].count*100;
+    html += `<div class="funnel-final">최종 전환율 = <b>${pct(finalRate)}%</b> (${pipeline[0].stage} → ${pipeline[pipeline.length-1].stage})</div>`;
+    return html;
+  }
+
+  function revenueChart(monthly, selectedMonth){
+    const W=520,H=240,padL=40,padR=16,padT=16,padB=30;
+    const innerW=W-padL-padR, innerH=H-padT-padB;
+    const maxV = Math.max(...monthly.map(m=>Math.max(m.revenue,m.target)))*1.1;
+    const step = innerW/monthly.length;
+    const bw = step*0.5;
+
+    const selM = monthly.find(m=>m.month===selectedMonth) || monthly[monthly.length-1];
+    const targetY = padT + innerH - (selM.target/maxV*innerH);
+
+    const bars = monthly.map((m,i)=>{
+      const x = padL+step*i+(step-bw)/2;
+      const h = m.revenue/maxV*innerH;
+      const y = padT+innerH-h;
+      const isSelected = m.month===selectedMonth;
+      return `<rect x="${x}" y="${y}" width="${bw}" height="${h}" rx="3" fill="${isSelected?'var(--accent)':'var(--accent-light)'}"></rect>`;
+    }).join('');
+    const labels = monthly.map((m,i)=>{
+      const x = padL+step*i+step/2;
+      return `<text x="${x}" y="${H-8}" text-anchor="middle" font-size="11" fill="var(--willy-sub)">${m.month}</text>`;
+    }).join('');
+
+    return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;">
+      <line x1="${padL}" y1="${padT+innerH}" x2="${W-padR}" y2="${padT+innerH}" stroke="#E4E4E7" />
+      <line x1="${padL}" y1="${targetY}" x2="${W-padR}" y2="${targetY}" stroke="#a1a1aa" stroke-width="1.5" stroke-dasharray="4 4" />
+      <text x="${W-padR}" y="${targetY-6}" text-anchor="end" font-size="10" fill="var(--willy-sub)">목표</text>
+      ${bars}${labels}
+    </svg>`;
+  }
+
+  main();
+</script>
+</body>
+</html>

@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>손익 대시보드 · WILLY</title>
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
+<link rel="stylesheet" href="../shared/theme.css" />
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../shared/shell.js"></script>
+<style>
+  :root{ --accent:#16a34a; --accent-light:#bbf7d0; --accent-bg:#f0fdf4; --bad:#dc2626; --gray:#d4d4d8; }
+  .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;}
+  .card{background:#fff;border:1px solid #E4E4E7;border-radius:14px;padding:16px 18px;}
+  .card .label{font-size:12px;color:var(--willy-sub);margin-bottom:8px;}
+  .card .value{font-size:26px;font-weight:700;letter-spacing:-0.5px;}
+  .card .value.big{font-size:30px;color:var(--accent);}
+  .card .sub{font-size:12px;color:var(--willy-sub);margin-top:6px;}
+  .card .barbg{background:#f4f4f5;border-radius:999px;height:6px;margin-top:10px;overflow:hidden;}
+  .card .barfg{background:var(--accent);height:100%;border-radius:999px;}
+  .panel{background:#fff;border:1px solid #E4E4E7;border-radius:14px;padding:18px 20px;margin-bottom:16px;}
+  .panel h2{font-size:15px;margin:0 0 14px;}
+  .grid2{display:grid;grid-template-columns:1.3fr 1fr;gap:16px;}
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  th,td{text-align:right;padding:8px 6px;white-space:nowrap;}
+  th:first-child,td:first-child{text-align:left;}
+  thead th{color:var(--willy-sub);font-weight:500;border-bottom:1px solid #E4E4E7;font-size:12px;}
+  tbody td{border-bottom:1px solid #f4f4f5;}
+  tbody tr:last-child td{border-bottom:none;}
+  .tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:999px;background:#f4f4f5;color:var(--willy-sub);}
+  .tag.fixed{background:#f4f4f5;color:#52525b;}
+  .tag.var{background:var(--accent-bg);color:var(--accent);}
+  .margin-row{display:flex;align-items:center;gap:10px;padding:8px 0;}
+  .margin-row .name{width:110px;flex-shrink:0;font-size:13px;}
+  .margin-bar-bg{flex:1;background:#f4f4f5;border-radius:999px;height:10px;overflow:hidden;position:relative;}
+  .margin-bar-fg{height:100%;border-radius:999px;}
+  .margin-row .val{width:50px;text-align:right;font-size:13px;font-weight:600;flex-shrink:0;}
+  .table-scroll{overflow-x:auto;}
+  .gauge-wrap{text-align:center;}
+  .gauge-num{font-size:28px;font-weight:700;color:var(--accent);margin-top:-50px;}
+  .gauge-sub{font-size:12px;color:var(--willy-sub);margin-top:2px;}
+  .gauge-be{margin-top:14px;padding:10px;background:var(--accent-bg);border-radius:10px;font-size:12px;color:var(--willy-sub);}
+  .gauge-be b{color:var(--willy-text);font-size:14px;}
+  .loading,.err{padding:40px;text-align:center;color:var(--willy-sub);font-size:13px;}
+  .err{color:var(--bad);}
+  @media (max-width:860px){
+    .cards{grid-template-columns:repeat(2,1fr);}
+    .grid2{grid-template-columns:1fr;}
+  }
+</style>
+</head>
+<body>
+<div id="shell-root"></div>
+<div id="content"><div class="loading">불러오는 중...</div></div>
+
+<script>
+  const SUPABASE_URL = 'https://gsqurjwbdkenmjwspucq.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdzcXVyandiZGtlbm1qd3NwdWNxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY1NTY3MjIsImV4cCI6MjEwMjEzMjcyMn0.VWwpg2uLfFWquknfnKjsj6a_-AfTdQJS8LVw9dSQ0xo';
+
+  WillyShell.mount({active:'pl', title:'손익 대시보드', subtitle:'답하는 질문 — 이번 달 남았나 밑졌나? 기기값 vs 설치비, 어디서 새나?'});
+
+  const { createClient } = supabase;
+  const won = n => Math.round(n).toLocaleString('ko-KR');
+  const pct = n => (Math.round(n*10)/10).toLocaleString('ko-KR');
+
+  async function main(){
+    const content = document.getElementById('content');
+    try{
+      const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      const [{data:summary,error:e1},{data:cost,error:e2},{data:margin,error:e3}] = await Promise.all([
+        db.from('pl_summary').select('*').order('sort_order',{ascending:true}),
+        db.from('pl_cost').select('*'),
+        db.from('pl_margin').select('*')
+      ]);
+      if(e1||e2||e3) throw (e1||e2||e3);
+      if(!summary?.length||!cost?.length||!margin?.length) throw new Error('데이터가 비어 있습니다.');
+      let selectedMonth = summary[summary.length-1].month;
+      WillyShell.setMonthFilter(summary.map(s=>s.month), selectedMonth, (m)=>{ selectedMonth = m; render(summary, cost, margin, selectedMonth); });
+      render(summary, cost, margin, selectedMonth);
+    }catch(err){
+      content.innerHTML = `<div class="err">데이터를 불러오지 못했습니다.<br>${(err && err.message) || err}</div>`;
+      console.error(err);
+    }
+  }
+
+  function render(summary, cost, margin, selectedMonth){
+    const idx = summary.findIndex(s=>s.month===selectedMonth);
+    const thisM = summary[idx>=0?idx:summary.length-1];
+    const prevM = idx>0 ? summary[idx-1] : null;
+
+    const totalCost = thisM.device_cost + thisM.install_fee + thisM.payroll + thisM.other_cost;
+    const opProfit = thisM.revenue - totalCost;
+    const opMarginRate = thisM.revenue ? opProfit/thisM.revenue*100 : 0;
+    const beRate = totalCost ? thisM.revenue/totalCost*100 : 0;
+
+    const opTarget = 950;
+    const opTargetRate = opTarget ? opProfit/opTarget*100 : 0;
+    const marginTarget = 10;
+    const marginGap = marginTarget - opMarginRate;
+
+    let prevTotalCost = null;
+    if(prevM){ prevTotalCost = prevM.device_cost+prevM.install_fee+prevM.payroll+prevM.other_cost; }
+    const costDiff = prevTotalCost!==null ? totalCost-prevTotalCost : null;
+
+    const totalCostItems = cost.reduce((s,c)=>s+c.amount,0);
+
+    const content = document.getElementById('content');
+    content.innerHTML = `
+      <div class="cards">
+        <div class="card">
+          <div class="label">영업이익</div>
+          <div class="value big">${won(opProfit)}만원</div>
+          <div class="barbg"><div class="barfg" style="width:${Math.min(Math.max(opTargetRate,0),100)}%"></div></div>
+          <div class="sub">목표 ${won(opTarget)}만원 대비 ${pct(opTargetRate)}%</div>
+        </div>
+        <div class="card">
+          <div class="label">영업이익률</div>
+          <div class="value">${pct(opMarginRate)}%</div>
+          <div class="sub">${marginGap>0 ? `목표 10%까지 ${pct(marginGap)}%p 부족` : `목표 10% 달성`}</div>
+        </div>
+        <div class="card">
+          <div class="label">손익분기 달성률</div>
+          <div class="value">${pct(beRate)}%</div>
+          <div class="sub">매출 ÷ 총비용</div>
+        </div>
+        <div class="card">
+          <div class="label">총비용</div>
+          <div class="value">${won(totalCost)}만원</div>
+          <div class="sub">${costDiff!==null ? (costDiff>=0?`전월 대비 +${won(costDiff)}만원`:`전월 대비 -${won(-costDiff)}만원`) : '전월 데이터 없음'}</div>
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="panel">
+          <h2>손익 구조 (기기값 · 설치비 분리)</h2>
+          ${waterfall(thisM, opProfit)}
+        </div>
+        <div class="panel">
+          <h2>손익분기 달성률</h2>
+          ${gauge(beRate, totalCost)}
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="panel">
+          <h2>비용 순위</h2>
+          <div class="table-scroll">
+          <table>
+            <thead><tr><th>항목</th><th>구분</th><th>금액(만원)</th><th>비중</th></tr></thead>
+            <tbody>
+              ${cost.sort((a,b)=>b.amount-a.amount).map(c=>`
+                <tr>
+                  <td>${c.item}</td>
+                  <td><span class="tag ${c.cost_type==='고정'?'fixed':'var'}">${c.cost_type}</span></td>
+                  <td>${won(c.amount)}</td>
+                  <td>${pct(c.amount/totalCostItems*100)}%</td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+          </div>
+        </div>
+        <div class="panel">
+          <h2>상품유형별 공헌이익률</h2>
+          ${marginList(margin)}
+        </div>
+      </div>
+    `;
+  }
+
+  function marginList(margin){
+    const maxAbs = Math.max(...margin.map(m=>Math.abs(m.margin_rate)));
+    return margin.sort((a,b)=>b.margin_rate-a.margin_rate).map(m=>{
+      const isNeg = m.margin_rate < 0;
+      const w = Math.abs(m.margin_rate)/maxAbs*100;
+      return `<div class="margin-row">
+        <div class="name">${m.product}</div>
+        <div class="margin-bar-bg"><div class="margin-bar-fg" style="width:${w}%;background:${isNeg?'var(--bad)':'var(--accent)'}"></div></div>
+        <div class="val" style="color:${isNeg?'var(--bad)':'var(--willy-text)'}">${pct(m.margin_rate)}%</div>
+      </div>`;
+    }).join('');
+  }
+
+  function waterfall(m, opProfit){
+    const W=520,H=280,padL=40,padR=10,padT=16,padB=46;
+    const innerW=W-padL-padR, innerH=H-padT-padB;
+    const maxVal = m.revenue*1.15;
+    const yOf = v => padT + innerH*(1 - v/maxVal);
+
+    const cats = [];
+    let cum = m.revenue;
+    cats.push({label:'매출', top:yOf(m.revenue), bottom:yOf(0), color:'var(--accent)', text:won(m.revenue)});
+    cats.push({label:'기기매입비', top:yOf(cum), bottom:yOf(cum-m.device_cost), color:'var(--gray)', text:'-'+won(m.device_cost)});
+    cum -= m.device_cost;
+    cats.push({label:'설치도급비', top:yOf(cum), bottom:yOf(cum-m.install_fee), color:'var(--gray)', text:'-'+won(m.install_fee)});
+    cum -= m.install_fee;
+    cats.push({label:'인건비', top:yOf(cum), bottom:yOf(cum-m.payroll), color:'var(--gray)', text:'-'+won(m.payroll)});
+    cum -= m.payroll;
+    cats.push({label:'기타비용', top:yOf(cum), bottom:yOf(cum-m.other_cost), color:'var(--gray)', text:'-'+won(m.other_cost)});
+    cum -= m.other_cost;
+    cats.push({label:'영업이익', top:yOf(Math.max(opProfit,0)), bottom:yOf(Math.min(opProfit,0)), color:'var(--accent)', text:won(opProfit)});
+
+    const step = innerW/cats.length;
+    const bw = step*0.6;
+    const bars = cats.map((c,i)=>{
+      const x = padL+step*i+(step-bw)/2;
+      const top = Math.min(c.top,c.bottom), h = Math.abs(c.bottom-c.top)||2;
+      return `<rect x="${x}" y="${top}" width="${bw}" height="${h}" rx="3" fill="${c.color}"></rect>
+              <text x="${x+bw/2}" y="${top-6}" text-anchor="middle" font-size="10.5" fill="var(--willy-sub)">${c.text}</text>
+              <text x="${x+bw/2}" y="${H-padB+20}" text-anchor="middle" font-size="10.5" fill="var(--willy-sub)">${c.label}</text>`;
+    }).join('');
+
+    return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;">
+      <line x1="${padL}" y1="${yOf(0)}" x2="${W-padR}" y2="${yOf(0)}" stroke="#E4E4E7" />
+      ${bars}
+    </svg>`;
+  }
+
+  function polar(cx,cy,r,deg){
+    const rad = deg*Math.PI/180;
+    return [cx+r*Math.cos(rad), cy-r*Math.sin(rad)];
+  }
+  function arcPath(cx,cy,r,startDeg,endDeg){
+    const totalSpan = startDeg-endDeg;
+    if(totalSpan<=0) return '';
+    const steps = Math.max(Math.ceil(totalSpan/89),1);
+    const stepDeg = totalSpan/steps;
+    let d='';
+    for(let i=0;i<=steps;i++){
+      const deg = startDeg - stepDeg*i;
+      const [x,y] = polar(cx,cy,r,deg);
+      d += i===0 ? `M ${x} ${y} ` : `A ${r} ${r} 0 0 1 ${x} ${y} `;
+    }
+    return d;
+  }
+
+  function gauge(rate, totalCost){
+    const W=300,H=190,cx=W/2,cy=150,r=110,sw=22;
+    const capped = Math.min(rate,150);
+    const valueDeg = 180 - (capped/150*180);
+    const bg = arcPath(cx,cy,r,180,0);
+    const fg = arcPath(cx,cy,r,180,valueDeg);
+    const [mx,my] = polar(cx,cy,r,0);
+    const [lx,ly] = polar(cx,cy,r,180);
+    const color = rate>=100 ? 'var(--accent)' : rate>=85 ? '#d97706' : 'var(--bad)';
+    return `
+      <div class="gauge-wrap">
+        <svg viewBox="0 0 ${W} ${H}" style="width:100%;max-width:320px;height:auto;">
+          <path d="${bg}" fill="none" stroke="#f4f4f5" stroke-width="${sw}" stroke-linecap="round"></path>
+          <path d="${fg}" fill="none" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"></path>
+          <text x="${lx}" y="${cy+18}" font-size="10" fill="var(--willy-sub)" text-anchor="middle">0%</text>
+          <text x="${cx}" y="${cy-r-10}" font-size="10" fill="var(--willy-sub)" text-anchor="middle">75%</text>
+          <text x="${mx}" y="${cy+18}" font-size="10" fill="var(--willy-sub)" text-anchor="middle">150%</text>
+        </svg>
+        <div class="gauge-num">${pct(rate)}%</div>
+        <div class="gauge-sub">매출 ÷ 총비용</div>
+        <div class="gauge-be">손익분기점 매출액 <b>${won(totalCost)}만원</b></div>
+      </div>`;
+  }
+
+  main();
+</script>
+</body>
+</html>

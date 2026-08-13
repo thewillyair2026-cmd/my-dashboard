@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>경영 대시보드 · WILLY</title>
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
+<link rel="stylesheet" href="../shared/theme.css" />
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../shared/shell.js"></script>
+<style>
+  :root{
+    --c-sales:#2563eb; --c-mkt:#ea580c; --c-cust:#0d9488; --c-profit:#16a34a; --c-hr:#7c3aed;
+    --good:#16a34a; --bad:#dc2626;
+  }
+  .cards{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:16px;}
+  .card{background:#fff;border:1px solid #E4E4E7;border-radius:14px;overflow:hidden;}
+  .card .bar{height:4px;}
+  .card .body{padding:14px 14px 16px;}
+  .card .label{font-size:12px;color:var(--willy-sub);margin-bottom:8px;}
+  .card .value{font-size:21px;font-weight:700;letter-spacing:-0.3px;}
+  .card .sub{font-size:11.5px;color:var(--willy-sub);margin-top:6px;line-height:1.4;}
+  .signal{display:flex;align-items:center;gap:6px;margin-top:10px;font-size:11.5px;font-weight:600;}
+  .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+  .dot.good{background:var(--good);} .signal.good{color:var(--good);}
+  .dot.warn{background:#d97706;} .signal.warn{color:#d97706;}
+  .dot.bad{background:var(--bad);} .signal.bad{color:var(--bad);}
+  .panel{background:#fff;border:1px solid #E4E4E7;border-radius:14px;padding:18px 20px;margin-bottom:16px;}
+  .panel h2{font-size:15px;margin:0 0 14px;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  .goal-row{display:flex;align-items:center;gap:10px;padding:9px 0;}
+  .goal-row .name{width:56px;flex-shrink:0;font-size:12.5px;color:var(--willy-sub);}
+  .goal-bar-bg{flex:1;background:#f4f4f5;border-radius:999px;height:12px;overflow:hidden;position:relative;}
+  .goal-bar-fg{height:100%;border-radius:999px;}
+  .goal-tick{position:absolute;top:-3px;bottom:-3px;width:1px;background:#a1a1aa;}
+  .goal-row .val{width:52px;text-align:right;font-size:12.5px;font-weight:600;}
+  .change-item{display:flex;gap:12px;padding:11px 0;border-bottom:1px solid #f4f4f5;}
+  .change-item:last-child{border-bottom:none;}
+  .change-num{width:22px;height:22px;border-radius:50%;background:#f4f4f5;color:var(--willy-sub);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .change-body{flex:1;}
+  .change-title{font-size:13px;font-weight:600;}
+  .change-desc{font-size:11.5px;color:var(--willy-sub);margin-top:2px;}
+  .change-val{font-size:14px;font-weight:700;flex-shrink:0;align-self:center;}
+  .change-val.good{color:var(--good);} .change-val.bad{color:var(--bad);}
+  .legend{display:flex;gap:16px;font-size:11px;color:var(--willy-sub);margin-top:8px;flex-wrap:wrap;}
+  .legend span{display:inline-flex;align-items:center;gap:4px;}
+  .legend i{display:inline-block;width:10px;height:10px;border-radius:2px;}
+  .loading,.err{padding:40px;text-align:center;color:var(--willy-sub);font-size:13px;}
+  .err{color:var(--bad);}
+  @media (max-width:960px){ .cards{grid-template-columns:repeat(3,1fr);} }
+  @media (max-width:700px){ .cards{grid-template-columns:repeat(2,1fr);} .grid2{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+<div id="shell-root"></div>
+<div id="content"><div class="loading">불러오는 중...</div></div>
+
+<script>
+  const SUPABASE_URL = 'https://gsqurjwbdkenmjwspucq.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdzcXVyandiZGtlbm1qd3NwdWNxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY1NTY3MjIsImV4cCI6MjEwMjEzMjcyMn0.VWwpg2uLfFWquknfnKjsj6a_-AfTdQJS8LVw9dSQ0xo';
+
+  WillyShell.mount({active:'exec', title:'경영 대시보드', subtitle:'답하는 질문 — 지금 빨간불 켜진 데가 어디인가? 이번 달 뭐가 달라졌나?'});
+
+  const { createClient } = supabase;
+  const won = n => Math.round(n).toLocaleString('ko-KR');
+  const pct = n => (Math.round(n*10)/10).toLocaleString('ko-KR');
+
+  async function main(){
+    const content = document.getElementById('content');
+    try{
+      const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      const [
+        {data:sales,error:e1},{data:mkt,error:e2},{data:cust,error:e3},
+        {data:pl,error:e4},{data:hr,error:e5},{data:target,error:e6}
+      ] = await Promise.all([
+        db.from('sales_monthly').select('*').order('sort_order',{ascending:true}),
+        db.from('marketing_monthly').select('*').order('sort_order',{ascending:true}),
+        db.from('customer_summary').select('*').order('sort_order',{ascending:true}),
+        db.from('pl_summary').select('*').order('sort_order',{ascending:true}),
+        db.from('hr_monthly').select('*').order('sort_order',{ascending:true}),
+        db.from('exec_target').select('*')
+      ]);
+      const err = e1||e2||e3||e4||e5||e6;
+      if(err) throw err;
+      if(![sales,mkt,cust,pl,hr,target].every(d=>d&&d.length)) throw new Error('데이터가 비어 있습니다. 5개 대시보드용 표와 exec_target 표가 모두 있어야 합니다.');
+      let selectedMonth = sales[sales.length-1].month;
+      WillyShell.setMonthFilter(sales.map(s=>s.month), selectedMonth, (m)=>{ selectedMonth = m; render(sales, mkt, cust, pl, hr, target, selectedMonth); });
+      render(sales, mkt, cust, pl, hr, target, selectedMonth);
+    }catch(err){
+      content.innerHTML = `<div class="err">데이터를 불러오지 못했습니다.<br>${(err && err.message) || err}<br><br>영업·마케팅·고객·손익·인사 5개 표를 먼저 만드셨는지 확인해주세요.</div>`;
+      console.error(err);
+    }
+  }
+
+  function getTarget(target, area){ return target.find(t=>t.area===area) || {target:0,green:90,yellow:80}; }
+  function rate(actual, tgt, invert){
+    if(!tgt) return 0;
+    return invert ? (actual? tgt/actual*100 : 0) : actual/tgt*100;
+  }
+  function signal(r, t){
+    if(r >= t.green) return 'good';
+    if(r >= t.yellow) return 'warn';
+    return 'bad';
+  }
+  function signalText(s){ return s==='good' ? '정상' : s==='warn' ? '주의' : '경고'; }
+
+  function opProfitOf(p){ return p.revenue - p.device_cost - p.install_fee - p.payroll - p.other_cost; }
+  function opMarginOf(p){ return p.revenue ? opProfitOf(p)/p.revenue*100 : 0; }
+  function payrollRateOf(h){ return h.revenue ? h.payroll/h.revenue*100 : 0; }
+
+  function render(sales, mkt, cust, pl, hr, target, selectedMonth){
+    const idxOf = (arr) => { const i = arr.findIndex(x=>x.month===selectedMonth); return i>=0?i:arr.length-1; };
+    const si = idxOf(sales), mi = idxOf(mkt), ci = idxOf(cust), pi = idxOf(pl), hi = idxOf(hr);
+    const salesM = sales[si], salesP = si>0?sales[si-1]:null;
+    const mktM = mkt[mi], mktP = mi>0?mkt[mi-1]:null;
+    const custM = cust[ci], custP = ci>0?cust[ci-1]:null;
+    const plM = pl[pi], plP = pi>0?pl[pi-1]:null;
+    const hrM = hr[hi], hrP = hi>0?hr[hi-1]:null;
+
+    const tSales = getTarget(target,'매출');
+    const tRoas = getTarget(target,'ROAS');
+    const tCust = getTarget(target,'신규고객');
+    const tProfit = getTarget(target,'영업이익');
+    const tHr = getTarget(target,'인건비율');
+
+    const opProfit = opProfitOf(plM);
+    const payrollRate = payrollRateOf(hrM);
+
+    const areas = [
+      {key:'sales', label:'매출', color:'var(--c-sales)', value:`${won(salesM.revenue)}만원`, desc:`목표 ${won(tSales.target)}만원`, r:rate(salesM.revenue,tSales.target,false), t:tSales},
+      {key:'mkt', label:'광고비', color:'var(--c-mkt)', value:`${won(mktM.spend)}만원`, desc:`ROAS ${pct(mktM.roas)}%`, r:rate(mktM.roas,tRoas.target,false), t:tRoas},
+      {key:'cust', label:'고객', color:'var(--c-cust)', value:`신규 ${won(custM.new_customers)}건`, desc:`AS발생률 ${pct(custM.as_rate)}%`, r:rate(custM.new_customers,tCust.target,false), t:tCust},
+      {key:'profit', label:'이익', color:'var(--c-profit)', value:`${won(opProfit)}만원`, desc:`영업이익률 ${pct(opMarginOf(plM))}%`, r:rate(opProfit,tProfit.target,false), t:tProfit},
+      {key:'hr', label:'인력', color:'var(--c-hr)', value:`${pct(payrollRate)}%`, desc:`재직 ${hrM.headcount}명`, r:rate(payrollRate,tHr.target,true), t:tHr},
+    ];
+
+    const changes = [];
+    if(salesP){
+      const d = (salesM.revenue-salesP.revenue)/salesP.revenue*100;
+      changes.push({label:'매출', desc:'전월 대비 매출 변화', delta:d, unit:'%', good:d>=0});
+    }
+    if(mktP){
+      const d = mktM.roas-mktP.roas;
+      changes.push({label:'ROAS', desc:'광고 효율 변화', delta:d, unit:'%p', good:d>=0});
+    }
+    if(custP){
+      const d = custM.as_rate-custP.as_rate;
+      changes.push({label:'AS 발생률', desc:'설치 품질 지표 변화', delta:d, unit:'%p', good:d<=0});
+    }
+    if(plP){
+      const d = opMarginOf(plM)-opMarginOf(plP);
+      changes.push({label:'영업이익률', desc:'수익성 변화', delta:d, unit:'%p', good:d>=0});
+    }
+    if(hrP){
+      const d = payrollRateOf(hrM)-payrollRateOf(hrP);
+      changes.push({label:'인건비 비중', desc:'인건비 부담 변화', delta:d, unit:'%p', good:d<=0});
+    }
+    changes.sort((a,b)=>Math.abs(b.delta)-Math.abs(a.delta));
+    const top3 = changes.slice(0,3);
+
+    const content = document.getElementById('content');
+    content.innerHTML = `
+      <div class="cards">
+        ${areas.map(a=>`
+          <div class="card">
+            <div class="bar" style="background:${a.color}"></div>
+            <div class="body">
+              <div class="label">${a.label}</div>
+              <div class="value">${a.value}</div>
+              <div class="sub">${a.desc}</div>
+              <div class="signal ${a.t.target? signal(a.r,a.t):'good'}"><span class="dot ${a.t.target? signal(a.r,a.t):'good'}"></span>${a.t.target? signalText(signal(a.r,a.t)) : '-'} (달성률 ${pct(a.r)}%)</div>
+            </div>
+          </div>`).join('')}
+      </div>
+
+      <div class="grid2">
+        <div class="panel">
+          <h2>영역별 목표 달성률</h2>
+          ${goalBars(areas)}
+        </div>
+        <div class="panel">
+          <h2>이번 달 변화 TOP 3</h2>
+          ${top3.length ? top3.map((c,i)=>`
+            <div class="change-item">
+              <div class="change-num">${i+1}</div>
+              <div class="change-body">
+                <div class="change-title">${c.label}</div>
+                <div class="change-desc">${c.desc}</div>
+              </div>
+              <div class="change-val ${c.good?'good':'bad'}">${c.delta>=0?'+':''}${pct(c.delta)}${c.unit}</div>
+            </div>`).join('') : '<div class="change-desc">전월 데이터가 없어 비교할 수 없습니다.</div>'}
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>6개월 종합 추이</h2>
+        ${trendChart(sales, pl, mkt)}
+      </div>
+    `;
+  }
+
+  function goalBars(areas){
+    return areas.map(a=>{
+      const w = Math.min(a.r,150)/150*100;
+      const tickPct = 100/150*100;
+      return `<div class="goal-row">
+        <div class="name">${a.label}</div>
+        <div class="goal-bar-bg">
+          <div class="goal-bar-fg" style="width:${w}%;background:${a.color}"></div>
+          <div class="goal-tick" style="left:${tickPct}%"></div>
+        </div>
+        <div class="val">${pct(a.r)}%</div>
+      </div>`;
+    }).join('');
+  }
+
+  function trendChart(sales, pl, mkt){
+    const W=1000,H=260,padL=44,padR=16,padT=16,padB=30;
+    const innerW=W-padL-padR, innerH=H-padT-padB;
+    const n = sales.length;
+    const opProfits = pl.map(opProfitOf);
+    const maxV = Math.max(...sales.map(s=>s.revenue), ...opProfits, ...mkt.map(m=>m.spend))*1.15;
+    const step = innerW/(n-1);
+    const yOf = v => padT + innerH - (v/maxV*innerH);
+    const xOf = i => padL + step*i;
+
+    const line = (arr, key) => arr.map((d,i)=>`${xOf(i)},${yOf(typeof key==='function'?key(d):d[key])}`).join(' ');
+    const dots = (arr, key, color) => arr.map((d,i)=>`<circle cx="${xOf(i)}" cy="${yOf(typeof key==='function'?key(d):d[key])}" r="3" fill="${color}"></circle>`).join('');
+
+    const labels = sales.map((s,i)=>`<text x="${xOf(i)}" y="${H-8}" text-anchor="middle" font-size="11" fill="var(--willy-sub)">${s.month}</text>`).join('');
+
+    return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;">
+      <line x1="${padL}" y1="${padT+innerH}" x2="${W-padR}" y2="${padT+innerH}" stroke="#E4E4E7" />
+      <polyline points="${line(sales,'revenue')}" fill="none" stroke="var(--c-sales)" stroke-width="2.5"></polyline>
+      ${dots(sales,'revenue','var(--c-sales)')}
+      <polyline points="${line(pl,opProfitOf)}" fill="none" stroke="var(--c-profit)" stroke-width="2.5"></polyline>
+      ${dots(pl,opProfitOf,'var(--c-profit)')}
+      <polyline points="${line(mkt,'spend')}" fill="none" stroke="var(--c-mkt)" stroke-width="2.5"></polyline>
+      ${dots(mkt,'spend','var(--c-mkt)')}
+      ${labels}
+    </svg>
+    <div class="legend">
+      <span><i style="background:var(--c-sales)"></i>매출</span>
+      <span><i style="background:var(--c-profit)"></i>영업이익</span>
+      <span><i style="background:var(--c-mkt)"></i>광고비</span>
+    </div>`;
+  }
+
+  main();
+</script>
+</body>
+</html>
