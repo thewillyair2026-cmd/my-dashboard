@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>마케팅 대시보드</title>
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --accent:#ea580c;
+    --accent-light:#fed7aa;
+    --accent-bg:#fff7ed;
+    --text:#18181b;
+    --sub:#71717a;
+    --line:#e4e4e7;
+    --bg:#ffffff;
+    --card:#ffffff;
+    --good:#16a34a;
+    --bad:#dc2626;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1200px;margin:0 auto;padding:24px 16px 60px;}
+  header{margin-bottom:20px;}
+  header h1{font-size:22px;margin:0 0 6px;}
+  header p{font-size:13px;color:var(--sub);margin:0;}
+  .cards{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:12px;
+    margin-bottom:16px;
+  }
+  .card{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:16px 18px;
+  }
+  .card .label{font-size:12px;color:var(--sub);margin-bottom:8px;}
+  .card .value{font-size:26px;font-weight:700;letter-spacing:-0.5px;}
+  .card .value.big{font-size:30px;color:var(--accent);}
+  .card .sub{font-size:12px;color:var(--sub);margin-top:6px;}
+  .card .barbg{background:#f4f4f5;border-radius:999px;height:6px;margin-top:10px;overflow:hidden;}
+  .card .barfg{background:var(--accent);height:100%;border-radius:999px;}
+  .panel{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:18px 20px;
+    margin-bottom:16px;
+  }
+  .panel h2{font-size:15px;margin:0 0 14px;}
+  .grid2{
+    display:grid;
+    grid-template-columns:1.3fr 1fr;
+    gap:16px;
+  }
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  th,td{text-align:right;padding:8px 6px;white-space:nowrap;}
+  th:first-child,td:first-child{text-align:left;}
+  thead th{color:var(--sub);font-weight:500;border-bottom:1px solid var(--line);font-size:12px;}
+  tbody td{border-bottom:1px solid #f4f4f5;}
+  tbody tr:last-child td{border-bottom:none;}
+  tr.total td{font-weight:700;border-top:2px solid var(--line);border-bottom:none;padding-top:10px;}
+  .roas-cell{display:flex;align-items:center;justify-content:flex-end;gap:6px;}
+  .roas-bar-bg{width:50px;height:6px;background:#f4f4f5;border-radius:999px;overflow:hidden;}
+  .roas-bar-fg{height:100%;background:var(--accent);border-radius:999px;}
+  .table-scroll{overflow-x:auto;}
+  .pacing-row{margin-bottom:10px;}
+  .pacing-row .plabel{display:flex;justify-content:space-between;font-size:12px;color:var(--sub);margin-bottom:4px;}
+  .pacing-bg{background:#f4f4f5;border-radius:999px;height:14px;overflow:hidden;}
+  .pacing-fg{height:100%;border-radius:999px;}
+  .pacing-fg.budget{background:var(--accent);}
+  .pacing-fg.days{background:#a1a1aa;}
+  .pacing-msg{
+    margin:14px 0;
+    padding:12px 14px;
+    background:var(--accent-bg);
+    border-radius:10px;
+    font-size:13px;
+    line-height:1.5;
+  }
+  .pacing-msg b{color:var(--accent);}
+  .pacing-foot{display:flex;justify-content:space-between;font-size:12px;color:var(--sub);border-top:1px solid var(--line);padding-top:10px;margin-top:14px;}
+  .pacing-foot div b{display:block;font-size:15px;color:var(--text);font-weight:700;margin-top:2px;}
+  .loading,.err{padding:40px;text-align:center;color:var(--sub);font-size:13px;}
+  .err{color:var(--bad);}
+  @media (max-width:860px){
+    .cards{grid-template-columns:repeat(2,1fr);}
+    .grid2{grid-template-columns:1fr;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>마케팅 대시보드</h1>
+    <p>답하는 질문 — 어느 채널에 더 쓰고 어디를 끊나? 고객 한 명 데려오는 데 얼마 드나?</p>
+  </header>
+
+  <div id="content">
+    <div class="loading">불러오는 중...</div>
+  </div>
+</div>
+
+<script>
+  // ── Supabase 연결 정보 ─────────────────────────────
+  // Project Settings → API 에서 복사한 값을 아래 두 줄에 넣어주세요.
+  const SUPABASE_URL = 'https://gsqurjwbdkenmjwspucq.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdzcXVyandiZGtlbm1qd3NwdWNxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY1NTY3MjIsImV4cCI6MjEwMjEzMjcyMn0.VWwpg2uLfFWquknfnKjsj6a_-AfTdQJS8LVw9dSQ0xo';
+  // ───────────────────────────────────────────────────
+
+  const { createClient } = supabase;
+
+  const won = n => Math.round(n).toLocaleString('ko-KR');
+  const pct = n => (Math.round(n*10)/10).toLocaleString('ko-KR');
+
+  async function main(){
+    const content = document.getElementById('content');
+    if(SUPABASE_URL === 'YOUR_PROJECT_URL' || SUPABASE_ANON_KEY === 'YOUR_ANON_KEY'){
+      content.innerHTML = `<div class="err">아직 Supabase 연결 정보가 입력되지 않았습니다.<br>파일 아래쪽의 SUPABASE_URL, SUPABASE_ANON_KEY 두 줄을 채워주세요.</div>`;
+      return;
+    }
+    try{
+      const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      const [{data:channel,error:e1}, {data:monthly,error:e2}, {data:budget,error:e3}] = await Promise.all([
+        db.from('marketing_channel').select('*'),
+        db.from('marketing_monthly').select('*').order('sort_order',{ascending:true}),
+        db.from('marketing_budget').select('*')
+      ]);
+      if(e1||e2||e3) throw (e1||e2||e3);
+      if(!channel?.length || !monthly?.length || !budget?.length) throw new Error('데이터가 비어 있습니다.');
+
+      render(channel, monthly, budget[0]);
+    }catch(err){
+      content.innerHTML = `<div class="err">데이터를 불러오지 못했습니다.<br>${(err && err.message) || err}</div>`;
+      console.error(err);
+    }
+  }
+
+  function render(channel, monthly, budget){
+    // 채널별 파생 지표 계산
+    // 금액 필드(spend, revenue)는 '만원' 단위로 저장되어 있다고 가정.
+    // CPC·CPA는 값이 작아 만원 단위로 보면 0으로 보이므로 원 단위로 환산해서 보여준다.
+    const rows = channel.map(c=>{
+      const ctr = c.impressions ? c.clicks/c.impressions*100 : 0;
+      const cpc = c.clicks ? c.spend*10000/c.clicks : 0;
+      const cpa = c.conversions ? c.spend*10000/c.conversions : 0;
+      const roas = c.spend ? c.revenue/c.spend*100 : 0;
+      return {...c, ctr, cpc, cpa, roas};
+    });
+    const totalSpend = rows.reduce((s,r)=>s+r.spend,0);
+    const totalImp = rows.reduce((s,r)=>s+r.impressions,0);
+    const totalClicks = rows.reduce((s,r)=>s+r.clicks,0);
+    const totalConv = rows.reduce((s,r)=>s+r.conversions,0);
+    const totalRevenue = rows.reduce((s,r)=>s+r.revenue,0);
+    const avgCtr = totalImp ? totalClicks/totalImp*100 : 0;
+    const avgCpc = totalClicks ? totalSpend*10000/totalClicks : 0;
+    const avgCpa = totalConv ? totalSpend*10000/totalConv : 0;
+    const totalRoas = totalSpend ? totalRevenue/totalSpend*100 : 0;
+    const avgCvr = totalClicks ? totalConv/totalClicks*100 : 0;
+    const maxRoas = Math.max(...rows.map(r=>r.roas), totalRoas);
+
+    // 이번 달 = marketing_monthly 마지막 행
+    const thisMonth = monthly[monthly.length-1];
+    const spendRate = budget.budget ? thisMonth.spend/budget.budget*100 : 0;
+
+    // 예산 페이싱
+    const daysRate = budget.days_total ? budget.days_passed/budget.days_total*100 : 0;
+    const diff = spendRate - daysRate;
+    const dailyAvg = budget.days_passed ? thisMonth.spend/budget.days_passed : 0;
+    const remain = budget.budget - thisMonth.spend;
+    const projectedDay = dailyAvg>0 ? Math.round(budget.budget/dailyAvg) : null;
+
+    const content = document.getElementById('content');
+    content.innerHTML = `
+      <div class="cards">
+        <div class="card">
+          <div class="label">이번 달 광고비</div>
+          <div class="value big">${won(thisMonth.spend)}만원</div>
+          <div class="barbg"><div class="barfg" style="width:${Math.min(spendRate,100)}%"></div></div>
+          <div class="sub">예산 ${won(budget.budget)}만원 중 ${pct(spendRate)}% 소진</div>
+        </div>
+        <div class="card">
+          <div class="label">통합 ROAS</div>
+          <div class="value">${pct(totalRoas)}%</div>
+          <div class="sub">매출 ${won(totalRevenue)}만원 ÷ 광고비 ${won(totalSpend)}만원</div>
+        </div>
+        <div class="card">
+          <div class="label">CAC (고객 1명 획득 비용)</div>
+          <div class="value">${won(avgCpa)}원</div>
+          <div class="sub">전체 채널 평균</div>
+        </div>
+        <div class="card">
+          <div class="label">전환수</div>
+          <div class="value">${won(totalConv)}건</div>
+          <div class="sub">CVR ${pct(avgCvr)}%</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>채널별 성과</h2>
+        <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>채널</th><th>광고비(만원)</th><th>노출</th><th>클릭</th><th>CTR</th>
+              <th>CPC(원)</th><th>전환</th><th>CPA(원)</th><th>ROAS</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows.map(r=>`
+              <tr>
+                <td>${r.channel}</td>
+                <td>${won(r.spend)}</td>
+                <td>${won(r.impressions)}</td>
+                <td>${won(r.clicks)}</td>
+                <td>${pct(r.ctr)}%</td>
+                <td>${won(r.cpc)}</td>
+                <td>${won(r.conversions)}</td>
+                <td>${won(r.cpa)}</td>
+                <td>
+                  <div class="roas-cell">
+                    <span>${pct(r.roas)}%</span>
+                    <div class="roas-bar-bg"><div class="roas-bar-fg" style="width:${Math.min(r.roas/maxRoas*100,100)}%"></div></div>
+                  </div>
+                </td>
+              </tr>`).join('')}
+            <tr class="total">
+              <td>합계 / 평균</td>
+              <td>${won(totalSpend)}</td>
+              <td>${won(totalImp)}</td>
+              <td>${won(totalClicks)}</td>
+              <td>${pct(avgCtr)}%</td>
+              <td>${won(avgCpc)}</td>
+              <td>${won(totalConv)}</td>
+              <td>${won(avgCpa)}</td>
+              <td>
+                <div class="roas-cell">
+                  <span>${pct(totalRoas)}%</span>
+                  <div class="roas-bar-bg"><div class="roas-bar-fg" style="width:${Math.min(totalRoas/maxRoas*100,100)}%"></div></div>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="panel">
+          <h2>월별 광고비 · ROAS 추이</h2>
+          ${comboChart(monthly)}
+        </div>
+        <div class="panel">
+          <h2>예산 소진 페이싱</h2>
+          <div class="pacing-row">
+            <div class="plabel"><span>예산 소진</span><span>${pct(spendRate)}%</span></div>
+            <div class="pacing-bg"><div class="pacing-fg budget" style="width:${Math.min(spendRate,100)}%"></div></div>
+          </div>
+          <div class="pacing-row">
+            <div class="plabel"><span>기간 경과</span><span>${pct(daysRate)}%</span></div>
+            <div class="pacing-bg"><div class="pacing-fg days" style="width:${Math.min(daysRate,100)}%"></div></div>
+          </div>
+          <div class="pacing-msg">
+            경과보다 <b>${diff>=0?'+':''}${pct(diff)}%p</b> ${diff>=0?'빠르게':'느리게'} 소진 중입니다.
+            ${projectedDay ? `이 속도면 <b>${projectedDay}일째</b>에 예산이 소진됩니다.` : ''}
+          </div>
+          <div class="pacing-foot">
+            <div>집행<b>${won(thisMonth.spend)}만원</b></div>
+            <div>잔여<b>${won(remain)}만원</b></div>
+            <div>일 평균<b>${won(dailyAvg)}만원</b></div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function comboChart(monthly){
+    const W=520,H=240,padL=44,padR=16,padT=16,padB=30;
+    const innerW=W-padL-padR, innerH=H-padT-padB;
+    const maxSpend = Math.max(...monthly.map(m=>m.spend))*1.15;
+    const maxRoas = Math.max(...monthly.map(m=>m.roas))*1.25;
+    const bw = innerW/monthly.length*0.5;
+    const step = innerW/monthly.length;
+
+    const bars = monthly.map((m,i)=>{
+      const x = padL + step*i + (step-bw)/2;
+      const h = m.spend/maxSpend*innerH;
+      const y = padT+innerH-h;
+      const isLast = i===monthly.length-1;
+      return `<rect x="${x}" y="${y}" width="${bw}" height="${h}" rx="3" fill="${isLast?'var(--accent)':'#fed7aa'}"></rect>`;
+    }).join('');
+
+    const points = monthly.map((m,i)=>{
+      const x = padL + step*i + step/2;
+      const y = padT + innerH - (m.roas/maxRoas*innerH);
+      return `${x},${y}`;
+    }).join(' ');
+
+    const dots = monthly.map((m,i)=>{
+      const x = padL + step*i + step/2;
+      const y = padT + innerH - (m.roas/maxRoas*innerH);
+      return `<circle cx="${x}" cy="${y}" r="3.5" fill="#18181b"></circle>`;
+    }).join('');
+
+    const labels = monthly.map((m,i)=>{
+      const x = padL + step*i + step/2;
+      return `<text x="${x}" y="${H-8}" font-size="11" fill="var(--sub)" text-anchor="middle">${m.month}</text>`;
+    }).join('');
+
+    return `
+    <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;font-family:inherit;">
+      <line x1="${padL}" y1="${padT+innerH}" x2="${W-padR}" y2="${padT+innerH}" stroke="var(--line)" />
+      ${bars}
+      <polyline points="${points}" fill="none" stroke="#18181b" stroke-width="2"></polyline>
+      ${dots}
+      ${labels}
+    </svg>
+    <div style="display:flex;gap:16px;font-size:11px;color:var(--sub);margin-top:6px;">
+      <span><span style="display:inline-block;width:8px;height:8px;background:var(--accent);border-radius:2px;margin-right:4px;"></span>광고비</span>
+      <span><span style="display:inline-block;width:8px;height:8px;background:#18181b;border-radius:50%;margin-right:4px;"></span>ROAS</span>
+    </div>`;
+  }
+
+  main();
+</script>
+</body>
+</html>
