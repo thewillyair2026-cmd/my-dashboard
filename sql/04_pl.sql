@@ -52,6 +52,6 @@ insert into pl_margin (product, margin_rate) values
 alter table pl_summary enable row level security;
 alter table pl_cost    enable row level security;
 alter table pl_margin  enable row level security;
-create policy "read" on pl_summary for select to anon using (true);
-create policy "read" on pl_cost    for select to anon using (true);
-create policy "read" on pl_margin  for select to anon using (true);
+create policy "read" on pl_summary for select to authenticated using (true);
+create policy "read" on pl_cost    for select to authenticated using (true);
+create policy "read" on pl_margin  for select to authenticated using (true);

@@ -57,7 +57,7 @@ insert into sales_pipeline_monthly (ym, quotes, contracts, installs) values
   ('2026.08', 180, 51, 114);
 
 alter table sales_pipeline_monthly enable row level security;
-create policy "read" on sales_pipeline_monthly for select to anon using (true);
+create policy "read" on sales_pipeline_monthly for select to authenticated using (true);
 
 -- 거래유형별(채널 기반: 인테리어·부동산=B2B, 나머지=B2C)
 create table sales_deal_type (
@@ -115,7 +115,7 @@ insert into sales_deal_type_monthly (sort_order, ym, b2b_count, b2c_count, b2b_r
   (12,'2026.08',22, 29, 118918172, 130136888);
 
 alter table sales_deal_type_monthly enable row level security;
-create policy "read" on sales_deal_type_monthly for select to anon using (true);
+create policy "read" on sales_deal_type_monthly for select to authenticated using (true);
 
 -- 담당자/브랜드 월별 실적 (기간 선택 드롭다운용, 퇴사자 포함 전체)
 create table sales_rank_monthly (
@@ -229,11 +229,11 @@ insert into sales_rank_monthly (kind, name, ym, quotes, contracts, revenue) valu
   ('brand','삼성','2026.08',92,27,131345441);
 
 alter table sales_rank_monthly enable row level security;
-create policy "read" on sales_rank_monthly for select to anon using (true);
+create policy "read" on sales_rank_monthly for select to authenticated using (true);
 
 alter table sales_monthly   enable row level security;
 alter table sales_deal_type enable row level security;
 alter table sales_rank      enable row level security;
-create policy "read" on sales_monthly   for select to anon using (true);
-create policy "read" on sales_deal_type for select to anon using (true);
-create policy "read" on sales_rank      for select to anon using (true);
+create policy "read" on sales_monthly   for select to authenticated using (true);
+create policy "read" on sales_deal_type for select to authenticated using (true);
+create policy "read" on sales_rank      for select to authenticated using (true);

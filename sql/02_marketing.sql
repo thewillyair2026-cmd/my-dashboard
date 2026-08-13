@@ -229,9 +229,9 @@ insert into marketing_channel_monthly (channel, ym, quotes, contracts, revenue, 
   ('쿠팡','2026.08',3,0,0,false);
 
 alter table marketing_channel_monthly enable row level security;
-create policy "read" on marketing_channel_monthly for select to anon using (true);
+create policy "read" on marketing_channel_monthly for select to authenticated using (true);
 
 alter table marketing_channel   enable row level security;
 alter table marketing_naver_ads enable row level security;
-create policy "read" on marketing_channel   for select to anon using (true);
-create policy "read" on marketing_naver_ads for select to anon using (true);
+create policy "read" on marketing_channel   for select to authenticated using (true);
+create policy "read" on marketing_naver_ads for select to authenticated using (true);

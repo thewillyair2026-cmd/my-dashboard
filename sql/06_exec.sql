@@ -16,4 +16,4 @@ insert into exec_target (sort_order, area, target, green, yellow) values
   (5,'인건비율', 25,   95, 85);
 
 alter table exec_target enable row level security;
-create policy "read" on exec_target for select to anon using (true);
+create policy "read" on exec_target for select to authenticated using (true);
