@@ -164,7 +164,7 @@
         <div class="card">
           <div class="label">B2B vs B2C 전환율</div>
           <div class="value">${pct(b2bRate)}% <span style="font-size:14px;color:var(--willy-sub);">vs</span> ${pct(b2cRate)}%</div>
-          <div class="sub">${b2cRate?`인테리어·부동산 제휴가 ${(b2bRate/b2cRate).toFixed(1)}배 높음`:'해당 기간 B2C 데이터 없음'}</div>
+          <div class="sub">${b2cRate?`인테리어·부동산·베스트샵&갤러리아 제휴가 ${(b2bRate/b2cRate).toFixed(1)}배 높음`:'해당 기간 B2C 데이터 없음'}</div>
         </div>
         <div class="card">
           <div class="label">최다 유입 채널</div>
@@ -187,7 +187,7 @@
         </div>
         <div class="panel">
           <h2>B2B 채널 성과</h2>
-          <p class="panel-note">${label} · 인테리어·부동산·에어컨설팅 제휴 채널 · 헤더 클릭으로 정렬</p>
+          <p class="panel-note">${label} · 인테리어·부동산·에어컨설팅·베스트샵&갤러리아 제휴 채널 · 헤더 클릭으로 정렬</p>
           <div id="b2b-channel-body">${channelTable(aggB2b, 'b2b', b2bSort)}</div>
         </div>
       </div>
@@ -223,7 +223,7 @@
         <div class="insight-list">
           <div class="insight-item">
             <div class="num">1</div>
-            <div class="txt"><strong>인테리어·부동산 채널 확대 검토</strong><span>${b2cRate?`전환율이 B2C 평균의 ${(b2bRate/b2cRate).toFixed(1)}배 — 물량 대비 효율 최고`:'해당 기간 B2C 비교 데이터 없음'}</span></div>
+            <div class="txt"><strong>인테리어·부동산·베스트샵&갤러리아 채널 확대 검토</strong><span>${b2cRate?`전환율이 B2C 평균의 ${(b2bRate/b2cRate).toFixed(1)}배 — 물량 대비 효율 최고`:'해당 기간 B2C 비교 데이터 없음'}</span></div>
           </div>
           <div class="insight-item">
             <div class="num">2</div>
