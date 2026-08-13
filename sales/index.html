@@ -22,6 +22,8 @@
   .panel h2{font-size:15px;margin:0 0 4px;}
   .panel .panel-note{font-size:11.5px;color:var(--willy-sub);margin:0 0 14px;}
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  .panel-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:4px;}
+  .period-select{font-family:inherit;font-size:12px;color:var(--willy-text);font-weight:600;padding:5px 10px;border:1px solid #E4E4E7;border-radius:8px;background:#fff;cursor:pointer;}
   .rank-row{display:flex;align-items:center;gap:10px;padding:8px 0;}
   .rank-row .name{width:110px;font-size:13px;flex-shrink:0;}
   .rank-bar-bg{flex:1;background:#f4f4f5;border-radius:999px;height:10px;overflow:hidden;}
@@ -76,26 +78,29 @@
     const content = document.getElementById('content');
     try{
       const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-      const [{data:monthly,error:e1},{data:pipeline,error:e2},{data:rank,error:e3},{data:dealType,error:e4},{data:dealMonthly,error:e5}] = await Promise.all([
+      const [{data:monthly,error:e1},{data:pipeline,error:e2},{data:rank,error:e3},{data:dealType,error:e4},{data:dealMonthly,error:e5},{data:rankMonthly,error:e6}] = await Promise.all([
         db.from('sales_monthly').select('*').order('sort_order',{ascending:true}),
         db.from('sales_pipeline').select('*').order('sort_order',{ascending:true}),
         db.from('sales_rank').select('*'),
         db.from('sales_deal_type').select('*'),
-        db.from('sales_deal_type_monthly').select('*').order('sort_order',{ascending:true})
+        db.from('sales_deal_type_monthly').select('*').order('sort_order',{ascending:true}),
+        db.from('sales_rank_monthly').select('*')
       ]);
-      const err = e1||e2||e3||e4||e5;
+      const err = e1||e2||e3||e4||e5||e6;
       if(err) throw err;
-      if(!monthly?.length||!pipeline?.length||!rank?.length||!dealType?.length||!dealMonthly?.length) throw new Error('데이터가 비어 있습니다.');
+      if(!monthly?.length||!pipeline?.length||!rank?.length||!dealType?.length||!dealMonthly?.length||!rankMonthly?.length) throw new Error('데이터가 비어 있습니다.');
       let selectedYm = monthly[monthly.length-1].ym;
-      WillyShell.setMonthFilter(monthly.map(m=>m.ym), selectedYm, (m)=>{ selectedYm = m; render(monthly, pipeline, rank, dealType, dealMonthly, selectedYm); });
-      render(monthly, pipeline, rank, dealType, dealMonthly, selectedYm);
+      WillyShell.setMonthFilter(monthly.map(m=>m.ym), selectedYm, (m)=>{ selectedYm = m; render(monthly, pipeline, rank, dealType, dealMonthly, rankMonthly, selectedYm); });
+      render(monthly, pipeline, rank, dealType, dealMonthly, rankMonthly, selectedYm);
     }catch(err){
       content.innerHTML = `<div class="err">데이터를 불러오지 못했습니다.<br>${(err && err.message) || err}</div>`;
       console.error(err);
     }
   }
 
-  function render(monthly, pipeline, rank, dealType, dealMonthly, selectedYm){
+  const ACTIVE_STAFF = new Set(['신제호 과장','오형민 대리','정현수 대표','민대기 대리','김지연 주임','서은지 주임','이유진 사원','이지은 대리']);
+
+  function render(monthly, pipeline, rank, dealType, dealMonthly, rankMonthly, selectedYm){
     const idx = monthly.findIndex(m=>m.ym===selectedYm);
     const thisM = monthly[idx>=0?idx:monthly.length-1];
     const achieveRate = thisM.target ? thisM.revenue/thisM.target*100 : 0;
@@ -108,12 +113,11 @@
     const b2b = dealType.find(d=>d.kind==='B2B') || {revenue:0,count:0};
     const b2bRate = totalDeal ? b2b.revenue/totalDeal*100 : 0;
 
-    const contractStage = pipeline.find(p=>p.stage==='계약');
-    const installStage = pipeline.find(p=>p.stage==='설치완료');
-    const installRate = contractStage && installStage ? installStage.count/contractStage.count*100 : 0;
+    const prevM = idx>0 ? monthly[idx-1] : null;
+    const momRate = prevM && prevM.revenue ? (thisM.revenue-prevM.revenue)/prevM.revenue*100 : null;
 
-    const persons = rank.filter(r=>r.kind==='person').sort((a,b)=>b.amount-a.amount);
-    const brands = rank.filter(r=>r.kind==='brand').sort((a,b)=>b.amount-a.amount);
+    const periods = buildPeriodOptions(rankMonthly);
+    const defaultPeriod = 'ALL';
 
     const content = document.getElementById('content');
     content.innerHTML = `
@@ -135,9 +139,9 @@
           <div class="sub">${eok(b2b.revenue)} · ${won(b2b.count)}건 (인테리어·부동산 제휴)</div>
         </div>
         <div class="card">
-          <div class="label">설치완료율</div>
-          <div class="value">${pct(installRate)}%</div>
-          <div class="sub">계약 ${won(contractStage?.count||0)}건 중 설치완료 ${won(installStage?.count||0)}건</div>
+          <div class="label">전월 대비 증감률</div>
+          <div class="value" style="color:${momRate===null?'var(--willy-text)':(momRate>=0?'#16a34a':'#dc2626')}">${momRate===null?'-':(momRate>=0?'+':'')+pct(momRate)+'%'}</div>
+          <div class="sub">${prevM?`${prevM.ym} 대비 ${selectedYm}`:'전월 데이터 없음'}</div>
         </div>
       </div>
 
@@ -156,14 +160,19 @@
 
       <div class="grid2">
         <div class="panel">
-          <h2>담당자별 실적</h2>
-          <p class="panel-note">현재 재직 중인 담당자만 표시</p>
-          ${personRankList(persons)}
+          <div class="panel-head">
+            <h2>담당자별 실적</h2>
+            <select class="period-select" id="period-select">
+              ${periods.map(p=>`<option value="${p.value}"${p.value===defaultPeriod?' selected':''}>${p.label}</option>`).join('')}
+            </select>
+          </div>
+          <p class="panel-note" id="person-note">전체기간은 현재 재직 중인 담당자만 · 월/연도 선택 시 퇴사자 포함</p>
+          <div id="person-rank-body">${personRankList(aggregateRank(rankMonthly,'person',defaultPeriod))}</div>
         </div>
         <div class="panel">
           <h2>브랜드별 실적</h2>
-          <p class="panel-note">실외기 모델코드 기준 근사 분류</p>
-          ${brandRankList(brands)}
+          <p class="panel-note">실외기 모델코드 기준 근사 분류 · 왼쪽과 같은 기간</p>
+          <div id="brand-rank-body">${brandRankList(aggregateRank(rankMonthly,'brand',defaultPeriod))}</div>
         </div>
       </div>
 
@@ -173,9 +182,44 @@
         ${b2bChart(dealMonthly)}
       </div>
     `;
+
+    document.getElementById('period-select').addEventListener('change', (e)=>{
+      const period = e.target.value;
+      document.getElementById('person-rank-body').innerHTML = personRankList(aggregateRank(rankMonthly,'person',period));
+      document.getElementById('brand-rank-body').innerHTML = brandRankList(aggregateRank(rankMonthly,'brand',period));
+      document.getElementById('person-note').textContent = period==='ALL' ? '전체기간은 현재 재직 중인 담당자만 · 월/연도 선택 시 퇴사자 포함' : '선택한 기간에 활동한 담당자 전체(퇴사자 포함) 표시';
+    });
+  }
+
+  function buildPeriodOptions(rankMonthly){
+    const yms = [...new Set(rankMonthly.map(r=>r.ym))].sort();
+    const years = [...new Set(yms.map(y=>y.split('.')[0]))];
+    const opts = [{value:'ALL', label:'전체기간'}];
+    years.forEach(y=>opts.push({value:'YEAR:'+y, label:y+'년 전체'}));
+    yms.forEach(ym=>opts.push({value:ym, label:ym}));
+    return opts;
+  }
+
+  function aggregateRank(rankMonthly, kind, period){
+    let rows = rankMonthly.filter(r=>r.kind===kind);
+    if(period==='ALL'){
+      if(kind==='person') rows = rows.filter(r=>ACTIVE_STAFF.has(r.name));
+    } else if(period.startsWith('YEAR:')){
+      const y = period.slice(5);
+      rows = rows.filter(r=>r.ym.startsWith(y+'.'));
+    } else {
+      rows = rows.filter(r=>r.ym===period);
+    }
+    const agg = {};
+    rows.forEach(r=>{
+      if(!agg[r.name]) agg[r.name] = {name:r.name, amount:0};
+      agg[r.name].amount += r.revenue;
+    });
+    return Object.values(agg).filter(a=>a.amount>0).sort((a,b)=>b.amount-a.amount);
   }
 
   function personRankList(items){
+    if(!items.length) return '<div style="font-size:12px;color:var(--willy-sub);padding:8px 0;">해당 기간 실적이 없습니다.</div>';
     const max = Math.max(...items.map(i=>i.amount));
     return items.map(i=>`
       <div class="rank-row">
@@ -186,6 +230,7 @@
   }
 
   function brandRankList(items){
+    if(!items.length) return '<div style="font-size:12px;color:var(--willy-sub);padding:8px 0;">해당 기간 실적이 없습니다.</div>';
     const max = Math.max(...items.map(i=>i.amount));
     return items.map(i=>{
       const isLG = i.name.includes('LG');

@@ -19,6 +19,8 @@
   .panel{background:#fff;border:1px solid #E4E4E7;border-radius:14px;padding:18px 20px;margin-bottom:16px;}
   .panel h2{font-size:15px;margin:0 0 4px;}
   .panel .panel-note{font-size:11.5px;color:var(--willy-sub);margin:0 0 14px;}
+  .panel-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:4px;}
+  .period-select{font-family:inherit;font-size:12px;color:var(--willy-text);font-weight:600;padding:5px 10px;border:1px solid #E4E4E7;border-radius:8px;background:#fff;cursor:pointer;}
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
   .chan-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f4f4f5;}
   .chan-row:last-child{border-bottom:none;}
@@ -77,23 +79,30 @@
     const content = document.getElementById('content');
     try{
       const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-      const [{data:channel,error:e1},{data:naver,error:e2}] = await Promise.all([
+      const [{data:channel,error:e1},{data:naver,error:e2},{data:channelMonthly,error:e3}] = await Promise.all([
         db.from('marketing_channel').select('*'),
-        db.from('marketing_naver_ads').select('*')
+        db.from('marketing_naver_ads').select('*'),
+        db.from('marketing_channel_monthly').select('*')
       ]);
-      if(e1||e2) throw (e1||e2);
-      if(!channel?.length || !naver?.length) throw new Error('데이터가 비어 있습니다.');
-      render(channel, naver);
+      if(e1||e2||e3) throw (e1||e2||e3);
+      if(!channel?.length || !naver?.length || !channelMonthly?.length) throw new Error('데이터가 비어 있습니다.');
+      render(channel, naver, channelMonthly);
     }catch(err){
       content.innerHTML = `<div class="err">데이터를 불러오지 못했습니다.<br>${(err && err.message) || err}</div>`;
       console.error(err);
     }
   }
 
-  function render(channel, naver){
+  function render(channel, naver, channelMonthly){
     const rows = channel.map(c=>({...c, rate: c.quotes ? c.contracts/c.quotes*100 : 0}));
     const b2b = rows.filter(r=>r.is_b2b).sort((a,b)=>b.rate-a.rate);
     const b2c = rows.filter(r=>!r.is_b2b).sort((a,b)=>b.rate-a.rate);
+
+    const periods = buildPeriodOptions(channelMonthly);
+    const defaultPeriod = 'ALL';
+    const defaultAgg = aggregateChannel(channelMonthly, defaultPeriod);
+    const defaultB2c = defaultAgg.filter(r=>!r.is_b2b).sort((a,b)=>b.rate-a.rate);
+    const defaultB2b = defaultAgg.filter(r=>r.is_b2b).sort((a,b)=>b.rate-a.rate);
 
     const totalQ = rows.reduce((s,r)=>s+r.quotes,0);
     const totalC = rows.reduce((s,r)=>s+r.contracts,0);
@@ -138,14 +147,19 @@
 
       <div class="grid2">
         <div class="panel">
-          <h2>B2C 채널 전환율</h2>
+          <div class="panel-head">
+            <h2>B2C 채널 전환율</h2>
+            <select class="period-select" id="channel-period-select">
+              ${periods.map(p=>`<option value="${p.value}"${p.value===defaultPeriod?' selected':''}>${p.label}</option>`).join('')}
+            </select>
+          </div>
           <p class="panel-note">일반 소비자 유입 채널 · 전환율 높은 순</p>
-          ${channelBars(b2c, 'b2c')}
+          <div id="b2c-channel-body">${channelBars(defaultB2c, 'b2c')}</div>
         </div>
         <div class="panel">
           <h2>B2B 채널 전환율</h2>
-          <p class="panel-note">인테리어·부동산 제휴 채널 · 물량은 적지만 전환율 높음</p>
-          ${channelBars(b2b, 'b2b')}
+          <p class="panel-note">인테리어·부동산·에어컨설팅 제휴 채널 · 왼쪽과 같은 기간 · 물량은 적지만 전환율 높음</p>
+          <div id="b2b-channel-body">${channelBars(defaultB2b, 'b2b')}</div>
         </div>
       </div>
 
@@ -193,6 +207,42 @@
         </div>
       </div>
     `;
+
+    document.getElementById('channel-period-select').addEventListener('change', (e)=>{
+      const period = e.target.value;
+      const agg = aggregateChannel(channelMonthly, period);
+      const aggB2c = agg.filter(r=>!r.is_b2b).sort((a,b)=>b.rate-a.rate);
+      const aggB2b = agg.filter(r=>r.is_b2b).sort((a,b)=>b.rate-a.rate);
+      document.getElementById('b2c-channel-body').innerHTML = channelBars(aggB2c, 'b2c');
+      document.getElementById('b2b-channel-body').innerHTML = channelBars(aggB2b, 'b2b');
+    });
+  }
+
+  function buildPeriodOptions(channelMonthly){
+    const yms = [...new Set(channelMonthly.map(r=>r.ym))].sort();
+    const years = [...new Set(yms.map(y=>y.split('.')[0]))];
+    const opts = [{value:'ALL', label:'전체기간'}];
+    years.forEach(y=>opts.push({value:'YEAR:'+y, label:y+'년 전체'}));
+    yms.forEach(ym=>opts.push({value:ym, label:ym}));
+    return opts;
+  }
+
+  function aggregateChannel(channelMonthly, period){
+    let rows = channelMonthly;
+    if(period.startsWith('YEAR:')){
+      const y = period.slice(5);
+      rows = rows.filter(r=>r.ym.startsWith(y+'.'));
+    } else if(period!=='ALL'){
+      rows = rows.filter(r=>r.ym===period);
+    }
+    const agg = {};
+    rows.forEach(r=>{
+      if(!agg[r.channel]) agg[r.channel] = {channel:r.channel, quotes:0, contracts:0, revenue:0, is_b2b:r.is_b2b};
+      agg[r.channel].quotes += r.quotes;
+      agg[r.channel].contracts += r.contracts;
+      agg[r.channel].revenue += r.revenue;
+    });
+    return Object.values(agg).map(a=>({...a, rate: a.quotes ? a.contracts/a.quotes*100 : 0}));
   }
 
   function channelBars(items, type){

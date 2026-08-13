@@ -52,7 +52,7 @@
       '<div class="titles"><h1>'+cfg.title+'</h1><p>'+(cfg.subtitle||'')+'</p></div>'+
       '<div class="meta">'+
         '<span class="range" id="willy-month-filter">'+(cfg.range || defaultRange())+'</span>'+
-        '<span class="live"><span class="dot"></span>LIVE</span>'+
+        '<span class="updated-at">마지막 업데이트 '+lastUpdatedLabel()+'</span>'+
       '</div>';
 
     var main = document.createElement('div');
@@ -73,6 +73,12 @@
     }
 
     root.parentNode.insertBefore(main, root.nextSibling);
+  }
+
+  function lastUpdatedLabel(){
+    var d = new Date();
+    var pad = n => String(n).padStart(2,'0');
+    return `${d.getFullYear()}.${pad(d.getMonth()+1)}.${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
   }
 
   function defaultRange(){
