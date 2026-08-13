@@ -149,6 +149,7 @@
     const content = document.getElementById('content');
     content.innerHTML = `
       <a class="manage-link" href="../input/marketing.html">→ 마케팅 비용 입력 페이지로 이동</a>
+      <p style="font-size:11.5px;color:var(--willy-sub);margin:-8px 0 14px;">※ 이 페이지의 계약금액은 신규 유입 채널 기준이라 "설치자"(기존 고객 재구매) 계약은 제외됩니다. 재구매 포함 전체 계약금액은 영업 대시보드를 참고하세요.</p>
 
       <div class="cards">
         <div class="card">
@@ -159,7 +160,7 @@
         <div class="card">
           <div class="label">${label} 계약금액</div>
           <div class="value">${eok(totalRev)}</div>
-          <div class="sub">전체 채널 합계</div>
+          <div class="sub">전체 채널 합계 · 설치자(재구매) 제외</div>
         </div>
         <div class="card">
           <div class="label">B2B vs B2C 전환율</div>
