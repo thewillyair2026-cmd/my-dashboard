@@ -3,66 +3,49 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>인사 대시보드</title>
+<title>인사 대시보드 · WILLY</title>
 <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
+<link rel="stylesheet" href="../shared/theme.css" />
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../shared/shell.js"></script>
 <style>
-  :root{
-    --accent:#7c3aed;
-    --accent-light:#ddd6fe;
-    --accent-bg:#f5f3ff;
-    --text:#18181b;
-    --sub:#71717a;
-    --line:#e4e4e7;
-    --bg:#ffffff;
-    --card:#ffffff;
-    --good:#16a34a;
-    --bad:#dc2626;
-    --warn:#d97706;
-  }
-  *{box-sizing:border-box;}
-  body{margin:0;background:var(--bg);color:var(--text);font-family:'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;-webkit-font-smoothing:antialiased;}
-  .wrap{max-width:1200px;margin:0 auto;padding:24px 16px 60px;}
-  header{margin-bottom:20px;}
-  header h1{font-size:22px;margin:0 0 6px;}
-  header p{font-size:13px;color:var(--sub);margin:0;}
+  :root{ --accent:#7c3aed; --accent-light:#ddd6fe; --accent-bg:#f5f3ff; }
   .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;}
-  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px;}
-  .card .label{font-size:12px;color:var(--sub);margin-bottom:8px;}
+  .card{background:#fff;border:1px solid #E4E4E7;border-radius:14px;padding:16px 18px;}
+  .card .label{font-size:12px;color:var(--willy-sub);margin-bottom:8px;}
   .card .value{font-size:26px;font-weight:700;letter-spacing:-0.5px;}
   .card .value.big{font-size:30px;color:var(--accent);}
-  .card .sub{font-size:12px;color:var(--sub);margin-top:6px;}
+  .card .sub{font-size:12px;color:var(--willy-sub);margin-top:6px;}
   .card .flag{display:inline-block;margin-top:6px;font-size:11px;font-weight:600;padding:3px 8px;border-radius:999px;}
-  .flag.good{background:#dcfce7;color:var(--good);}
-  .flag.bad{background:#fee2e2;color:var(--bad);}
-  .panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin-bottom:16px;}
+  .flag.good{background:#dcfce7;color:#16a34a;}
+  .flag.bad{background:#fee2e2;color:#dc2626;}
+  .panel{background:#fff;border:1px solid #E4E4E7;border-radius:14px;padding:18px 20px;margin-bottom:16px;}
   .panel h2{font-size:15px;margin:0 0 14px;}
   .grid2{display:grid;grid-template-columns:1.3fr 1fr;gap:16px;}
   table{width:100%;border-collapse:collapse;font-size:13px;}
   th,td{text-align:right;padding:8px 6px;white-space:nowrap;}
   th:first-child,td:first-child{text-align:left;}
-  thead th{color:var(--sub);font-weight:500;border-bottom:1px solid var(--line);font-size:12px;}
+  thead th{color:var(--willy-sub);font-weight:500;border-bottom:1px solid #E4E4E7;font-size:12px;}
   tbody td{border-bottom:1px solid #f4f4f5;}
   tbody tr:last-child td{border-bottom:none;}
   .dept-bar-cell{display:flex;align-items:center;gap:8px;justify-content:flex-end;}
   .dept-bar-bg{width:70px;height:8px;background:#f4f4f5;border-radius:999px;overflow:hidden;}
   .dept-bar-fg{height:100%;background:var(--accent);border-radius:999px;}
   .donut-wrap{display:flex;align-items:center;gap:20px;}
-  .donut-center{position:relative;}
   .donut-legend{font-size:12px;flex:1;}
   .legend-row{display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f4f4f5;}
   .legend-row:last-child{border-bottom:none;}
   .legend-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;}
-  .legend-name{color:var(--sub);}
+  .legend-name{color:var(--willy-sub);}
   .ot-table{width:100%;border-collapse:collapse;font-size:12px;}
-  .ot-table th{font-weight:500;color:var(--sub);padding:6px 4px;text-align:center;}
+  .ot-table th{font-weight:500;color:var(--willy-sub);padding:6px 4px;text-align:center;}
   .ot-table th:first-child{text-align:left;}
   .ot-table td{text-align:center;padding:6px 4px;}
-  .ot-table td:first-child{text-align:left;color:var(--sub);}
+  .ot-table td:first-child{text-align:left;color:var(--willy-sub);}
   .ot-cell{border-radius:6px;padding:6px 0;font-weight:600;}
   .table-scroll{overflow-x:auto;}
-  .loading,.err{padding:40px;text-align:center;color:var(--sub);font-size:13px;}
-  .err{color:var(--bad);}
+  .loading,.err{padding:40px;text-align:center;color:var(--willy-sub);font-size:13px;}
+  .err{color:#dc2626;}
   @media (max-width:860px){
     .cards{grid-template-columns:repeat(2,1fr);}
     .grid2{grid-template-columns:1fr;}
@@ -71,19 +54,14 @@
 </style>
 </head>
 <body>
-<div class="wrap">
-  <header>
-    <h1>인사 대시보드</h1>
-    <p>답하는 질문 — 인건비가 매출의 몇 %인가? 이번 달 몇 명 들어오고 몇 명 나갔나?</p>
-  </header>
-  <div id="content"><div class="loading">불러오는 중...</div></div>
-</div>
+<div id="shell-root"></div>
+<div id="content"><div class="loading">불러오는 중...</div></div>
 
 <script>
-  // ── Supabase 연결 정보 ─────────────────────────────
   const SUPABASE_URL = 'https://gsqurjwbdkenmjwspucq.supabase.co';
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdzcXVyandiZGtlbm1qd3NwdWNxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY1NTY3MjIsImV4cCI6MjEwMjEzMjcyMn0.VWwpg2uLfFWquknfnKjsj6a_-AfTdQJS8LVw9dSQ0xo';
-  // ───────────────────────────────────────────────────
+
+  WillyShell.mount({active:'hr', title:'인사 대시보드', subtitle:'답하는 질문 — 인건비가 매출의 몇 %인가? (설치기사 도급비 제외, 재직 9명 기준)'});
 
   const { createClient } = supabase;
   const won = n => Math.round(n).toLocaleString('ko-KR');
@@ -92,10 +70,6 @@
 
   async function main(){
     const content = document.getElementById('content');
-    if(SUPABASE_URL === 'YOUR_PROJECT_URL' || SUPABASE_ANON_KEY === 'YOUR_ANON_KEY'){
-      content.innerHTML = `<div class="err">아직 Supabase 연결 정보가 입력되지 않았습니다.<br>파일 아래쪽의 SUPABASE_URL, SUPABASE_ANON_KEY 두 줄을 채워주세요.</div>`;
-      return;
-    }
     try{
       const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
       const [{data:monthly,error:e1},{data:dept,error:e2},{data:tenure,error:e3},{data:overtime,error:e4}] = await Promise.all([
@@ -138,12 +112,13 @@
         <div class="card">
           <div class="label">인건비 비중</div>
           <div class="value">${pct(payrollRate)}%</div>
-          <span class="flag ${payrollRate<=35?'good':'bad'}">${payrollRate<=35?'기준 35% 이하 정상':'기준 35% 초과'}</span>
+          <span class="flag ${payrollRate<=25?'good':'bad'}">${payrollRate<=25?'기준 25% 이하 정상':'기준 25% 초과'}</span>
+          <div class="sub" style="margin-top:6px;">설치기사 도급비는 손익에서 별도 집계</div>
         </div>
         <div class="card">
           <div class="label">이직률 (누적 기준)</div>
           <div class="value">${pct(turnoverRate)}%</div>
-          <span class="flag ${turnoverRate<=12?'good':'bad'}">${turnoverRate<=12?'목표 12% 이내':'목표 12% 초과'}</span>
+          <span class="flag ${turnoverRate<=15?'good':'bad'}">${turnoverRate<=15?'양호':'주의'}</span>
         </div>
         <div class="card">
           <div class="label">1인당 매출</div>
@@ -198,7 +173,7 @@
           </div>
         </div>
         <div class="panel">
-          <h2>부서별 초과근무 (월 시간대별 인원수)</h2>
+          <h2>부서별 월 초과근무 (인원수)</h2>
           <div class="table-scroll">
           ${overtimeTable(overtime)}
           </div>
@@ -232,10 +207,10 @@
     return `
       <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
         ${segs}
-        <text x="${cx}" y="${cy-6}" text-anchor="middle" font-size="22" font-weight="700" fill="var(--text)">${total}</text>
-        <text x="${cx}" y="${cy+14}" text-anchor="middle" font-size="11" fill="var(--sub)">총 인원</text>
+        <text x="${cx}" y="${cy-6}" text-anchor="middle" font-size="22" font-weight="700" fill="var(--willy-text)">${total}</text>
+        <text x="${cx}" y="${cy+14}" text-anchor="middle" font-size="11" fill="var(--willy-sub)">총 인원</text>
       </svg>
-      <div style="text-align:center;font-size:11px;color:var(--sub);margin-top:-6px;">이직률 ${pct(turnoverRate)}%</div>
+      <div style="text-align:center;font-size:11px;color:var(--willy-sub);margin-top:-6px;">이직률 ${pct(turnoverRate)}%</div>
     `;
   }
 
@@ -251,14 +226,14 @@
       const y = padT+innerH-h;
       const isLast = i===monthly.length-1;
       return `<rect x="${x}" y="${y}" width="${bw}" height="${h}" rx="3" fill="${isLast?'var(--accent)':'var(--accent-light)'}"></rect>
-              <text x="${x+bw/2}" y="${y-6}" text-anchor="middle" font-size="11" fill="var(--sub)">${m.headcount}</text>`;
+              <text x="${x+bw/2}" y="${y-6}" text-anchor="middle" font-size="11" fill="var(--willy-sub)">${m.headcount}</text>`;
     }).join('');
     const labels = monthly.map((m,i)=>{
       const x = padL+step*i+step/2;
-      return `<text x="${x}" y="${H-8}" text-anchor="middle" font-size="11" fill="var(--sub)">${m.month}</text>`;
+      return `<text x="${x}" y="${H-8}" text-anchor="middle" font-size="11" fill="var(--willy-sub)">${m.month}</text>`;
     }).join('');
     return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;">
-      <line x1="${padL}" y1="${padT+innerH}" x2="${W-padR}" y2="${padT+innerH}" stroke="var(--line)" />
+      <line x1="${padL}" y1="${padT+innerH}" x2="${W-padR}" y2="${padT+innerH}" stroke="#E4E4E7" />
       ${bars}${labels}
     </svg>`;
   }

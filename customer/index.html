@@ -3,43 +3,27 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>고객 대시보드</title>
+<title>고객 대시보드 · WILLY</title>
 <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
+<link rel="stylesheet" href="../shared/theme.css" />
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../shared/shell.js"></script>
 <style>
-  :root{
-    --accent:#0d9488;
-    --accent-light:#99f6e4;
-    --accent-bg:#f0fdfa;
-    --text:#18181b;
-    --sub:#71717a;
-    --line:#e4e4e7;
-    --bg:#ffffff;
-    --card:#ffffff;
-    --good:#16a34a;
-    --bad:#dc2626;
-  }
-  *{box-sizing:border-box;}
-  body{margin:0;background:var(--bg);color:var(--text);font-family:'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;-webkit-font-smoothing:antialiased;}
-  .wrap{max-width:1200px;margin:0 auto;padding:24px 16px 60px;}
-  header{margin-bottom:20px;}
-  header h1{font-size:22px;margin:0 0 6px;}
-  header p{font-size:13px;color:var(--sub);margin:0;}
+  :root{ --accent:#0d9488; --accent-light:#99f6e4; --accent-bg:#f0fdfa; }
   .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;}
-  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px;}
-  .card .label{font-size:12px;color:var(--sub);margin-bottom:8px;}
+  .card{background:#fff;border:1px solid #E4E4E7;border-radius:14px;padding:16px 18px;}
+  .card .label{font-size:12px;color:var(--willy-sub);margin-bottom:8px;}
   .card .value{font-size:26px;font-weight:700;letter-spacing:-0.5px;}
   .card .value.big{font-size:30px;color:var(--accent);}
-  .card .sub{font-size:12px;color:var(--sub);margin-top:6px;}
-  .card .sub.good{color:var(--good);}
-  .card .sub.bad{color:var(--bad);}
-  .panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin-bottom:16px;}
+  .card .sub{font-size:12px;color:var(--willy-sub);margin-top:6px;}
+  .card .sub.good{color:#16a34a;} .card .sub.bad{color:#dc2626;}
+  .panel{background:#fff;border:1px solid #E4E4E7;border-radius:14px;padding:18px 20px;margin-bottom:16px;}
   .panel h2{font-size:15px;margin:0 0 14px;}
   .grid2{display:grid;grid-template-columns:1.2fr 1fr;gap:16px;}
   .table-scroll{overflow-x:auto;}
   table.cohort{border-collapse:collapse;font-size:12px;width:100%;}
-  table.cohort th{color:var(--sub);font-weight:500;padding:6px 8px;text-align:center;}
-  table.cohort th:first-child,table.cohort td:first-child{text-align:left;color:var(--sub);}
+  table.cohort th{color:var(--willy-sub);font-weight:500;padding:6px 8px;text-align:center;}
+  table.cohort th:first-child,table.cohort td:first-child{text-align:left;color:var(--willy-sub);}
   table.cohort td{text-align:center;padding:4px;}
   .cohort-cell{border-radius:6px;padding:6px 0;font-weight:600;}
   .cohort-empty{color:#d4d4d8;}
@@ -48,16 +32,16 @@
   .legend-row{display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f4f4f5;}
   .legend-row:last-child{border-bottom:none;}
   .legend-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;}
-  .legend-name{color:var(--sub);}
-  .ltv-box{margin-top:10px;padding:10px;background:var(--accent-bg);border-radius:10px;font-size:12px;color:var(--sub);}
-  .ltv-box b{color:var(--accent);font-size:15px;}
-  .repeat-row{display:flex;align-items:center;gap:10px;padding:9px 0;}
-  .repeat-row .name{width:60px;flex-shrink:0;font-size:13px;}
-  .repeat-bar-bg{flex:1;background:#f4f4f5;border-radius:999px;height:10px;overflow:hidden;}
-  .repeat-bar-fg{height:100%;background:var(--accent);border-radius:999px;}
-  .repeat-row .val{width:50px;text-align:right;font-size:13px;font-weight:600;}
-  .loading,.err{padding:40px;text-align:center;color:var(--sub);font-size:13px;}
-  .err{color:var(--bad);}
+  .legend-name{color:var(--willy-sub);}
+  .avg-box{margin-top:10px;padding:10px;background:var(--accent-bg);border-radius:10px;font-size:12px;color:var(--willy-sub);}
+  .avg-box b{color:var(--accent);font-size:15px;}
+  .partner-row{display:flex;align-items:center;gap:10px;padding:9px 0;}
+  .partner-row .name{width:110px;flex-shrink:0;font-size:13px;}
+  .partner-bar-bg{flex:1;background:#f4f4f5;border-radius:999px;height:10px;overflow:hidden;}
+  .partner-bar-fg{height:100%;background:var(--accent);border-radius:999px;}
+  .partner-row .val{width:80px;text-align:right;font-size:12px;color:var(--willy-sub);}
+  .loading,.err{padding:40px;text-align:center;color:var(--willy-sub);font-size:13px;}
+  .err{color:#dc2626;}
   @media (max-width:860px){
     .cards{grid-template-columns:repeat(2,1fr);}
     .grid2{grid-template-columns:1fr;}
@@ -66,19 +50,14 @@
 </style>
 </head>
 <body>
-<div class="wrap">
-  <header>
-    <h1>고객 대시보드</h1>
-    <p>답하는 질문 — 신규가 느는 만큼 기존이 남아 있나? 한 명이 평생 얼마를 쓰나?</p>
-  </header>
-  <div id="content"><div class="loading">불러오는 중...</div></div>
-</div>
+<div id="shell-root"></div>
+<div id="content"><div class="loading">불러오는 중...</div></div>
 
 <script>
-  // ── Supabase 연결 정보 ─────────────────────────────
   const SUPABASE_URL = 'https://gsqurjwbdkenmjwspucq.supabase.co';
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdzcXVyandiZGtlbm1qd3NwdWNxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY1NTY3MjIsImV4cCI6MjEwMjEzMjcyMn0.VWwpg2uLfFWquknfnKjsj6a_-AfTdQJS8LVw9dSQ0xo';
-  // ───────────────────────────────────────────────────
+
+  WillyShell.mount({active:'customer', title:'고객 대시보드', subtitle:'답하는 질문 — B2C는 잘 설치되고 있나? B2B 파트너사는 계속 재발주하나?'});
 
   const { createClient } = supabase;
   const won = n => Math.round(n).toLocaleString('ko-KR');
@@ -86,102 +65,88 @@
 
   async function main(){
     const content = document.getElementById('content');
-    if(SUPABASE_URL === 'YOUR_PROJECT_URL' || SUPABASE_ANON_KEY === 'YOUR_ANON_KEY'){
-      content.innerHTML = `<div class="err">아직 Supabase 연결 정보가 입력되지 않았습니다.<br>파일 아래쪽의 SUPABASE_URL, SUPABASE_ANON_KEY 두 줄을 채워주세요.</div>`;
-      return;
-    }
     try{
       const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-      const [{data:summary,error:e1},{data:cohort,error:e2},{data:repeat,error:e3}] = await Promise.all([
+      const [{data:summary,error:e1},{data:cohort,error:e2},{data:partners,error:e3},{data:type,error:e4}] = await Promise.all([
         db.from('customer_summary').select('*').order('sort_order',{ascending:true}),
-        db.from('customer_cohort').select('*').order('sort_order',{ascending:true}),
-        db.from('customer_repeat').select('*').order('sort_order',{ascending:true})
+        db.from('customer_as_cohort').select('*').order('sort_order',{ascending:true}),
+        db.from('b2b_partners').select('*'),
+        db.from('customer_type').select('*')
       ]);
-      if(e1||e2||e3) throw (e1||e2||e3);
-      if(!summary?.length||!cohort?.length||!repeat?.length) throw new Error('데이터가 비어 있습니다.');
-      render(summary, cohort, repeat);
+      const err = e1||e2||e3||e4;
+      if(err) throw err;
+      if(!summary?.length||!cohort?.length||!partners?.length||!type?.length) throw new Error('데이터가 비어 있습니다.');
+      render(summary, cohort, partners, type);
     }catch(err){
       content.innerHTML = `<div class="err">데이터를 불러오지 못했습니다.<br>${(err && err.message) || err}</div>`;
       console.error(err);
     }
   }
 
-  function render(summary, cohort, repeat){
+  function render(summary, cohort, partners, type){
     const thisM = summary[summary.length-1];
     const prevM = summary.length>1 ? summary[summary.length-2] : null;
-    const churnDiff = prevM ? thisM.churn_rate - prevM.churn_rate : null;
-    const ltvDiff = prevM ? thisM.ltv - prevM.ltv : null;
-    const repeat6 = repeat.find(r=>r.period.includes('6'));
+    const asDiff = prevM ? thisM.as_rate - prevM.as_rate : null;
+    const dealDiff = prevM ? thisM.avg_deal - prevM.avg_deal : null;
 
     const content = document.getElementById('content');
     content.innerHTML = `
       <div class="cards">
         <div class="card">
-          <div class="label">전체 고객 수</div>
-          <div class="value big">${won(thisM.total_customers)}명</div>
-          <div class="sub">이번 달 신규 ${won(thisM.new_customers)}명</div>
+          <div class="label">이번 달 신규 설치</div>
+          <div class="value big">${won(thisM.new_customers)}건</div>
+          <div class="sub">B2C+B2B 합산</div>
         </div>
         <div class="card">
-          <div class="label">재구매율 (6개월)</div>
-          <div class="value">${repeat6?pct(repeat6.rate):'-'}%</div>
-          <div class="sub">customer_repeat 기준</div>
+          <div class="label">AS 발생률</div>
+          <div class="value">${pct(thisM.as_rate)}%</div>
+          <div class="sub ${asDiff===null?'':(asDiff<=0?'good':'bad')}">${asDiff===null?'전월 데이터 없음':(asDiff<=0?`전월 대비 ${pct(Math.abs(asDiff))}%p 개선`:`전월 대비 +${pct(asDiff)}%p 악화`)}</div>
         </div>
         <div class="card">
-          <div class="label">이탈률</div>
-          <div class="value">${pct(thisM.churn_rate)}%</div>
-          <div class="sub ${churnDiff===null?'':(churnDiff<=0?'good':'bad')}">${churnDiff===null?'전월 데이터 없음':(churnDiff<=0?`전월 대비 ${pct(Math.abs(churnDiff))}%p 개선`:`전월 대비 +${pct(churnDiff)}%p 악화`)}</div>
-          ${sparkline(summary.map(s=>s.churn_rate))}
+          <div class="label">평균 계약단가</div>
+          <div class="value">${won(thisM.avg_deal)}만원</div>
+          <div class="sub ${dealDiff===null?'':(dealDiff>=0?'good':'bad')}">${dealDiff===null?'전월 데이터 없음':(dealDiff>=0?`전월 대비 +${won(dealDiff)}만원`:`전월 대비 -${won(-dealDiff)}만원`)}</div>
         </div>
         <div class="card">
-          <div class="label">LTV</div>
-          <div class="value">${won(thisM.ltv/10000)}만원</div>
-          <div class="sub ${ltvDiff===null?'':(ltvDiff>=0?'good':'bad')}">${ltvDiff===null?'전월 데이터 없음':(ltvDiff>=0?`전월 대비 +${won(ltvDiff/10000)}만원`:`전월 대비 -${won(-ltvDiff/10000)}만원`)}</div>
-          ${sparkline(summary.map(s=>s.ltv))}
+          <div class="label">활성 B2B 파트너사</div>
+          <div class="value">${won(thisM.active_partners)}곳</div>
+          <div class="sub">부동산·인테리어 등 재발주 거래처</div>
         </div>
       </div>
 
       <div class="grid2">
         <div class="panel">
-          <h2>코호트 잔존율</h2>
+          <h2>설치 후 AS 발생 시점 (무AS 유지율)</h2>
           <div class="table-scroll">
           ${cohortTable(cohort)}
           </div>
         </div>
         <div class="panel">
-          <h2>고객 구성</h2>
-          ${compositionDonut(summary)}
+          <h2>거래 구성</h2>
+          ${compositionDonut(type, thisM)}
         </div>
       </div>
 
       <div class="grid2">
         <div class="panel">
-          <h2>기간별 재구매율</h2>
-          ${repeatBars(repeat)}
+          <h2>B2B 파트너사 TOP</h2>
+          ${partnerList(partners)}
         </div>
         <div class="panel">
-          <h2>월별 이탈률 추이</h2>
-          ${churnChart(summary)}
+          <h2>월별 AS 발생률 추이</h2>
+          ${asChart(summary)}
         </div>
       </div>
     `;
   }
 
-  function sparkline(values){
-    const W=100,H=28,pad=3;
-    const min=Math.min(...values), max=Math.max(...values);
-    const range = (max-min)||1;
-    const step = (W-pad*2)/(values.length-1);
-    const pts = values.map((v,i)=>`${pad+step*i},${H-pad-((v-min)/range)*(H-pad*2)}`).join(' ');
-    return `<svg viewBox="0 0 ${W} ${H}" style="width:70px;height:20px;margin-top:6px;"><polyline points="${pts}" fill="none" stroke="var(--accent)" stroke-width="2"></polyline></svg>`;
-  }
-
   function cohortTable(cohort){
-    const months = [...new Set(cohort.map(c=>c.cohort_month))];
+    const months = [...new Set(cohort.map(c=>c.install_month))];
     const maxAfter = Math.max(...cohort.map(c=>c.months_after));
     const cols = Array.from({length:maxAfter+1},(_,i)=>i);
-    const get = (month,after) => cohort.find(c=>c.cohort_month===month && c.months_after===after);
+    const get = (m,after) => cohort.find(c=>c.install_month===m && c.months_after===after);
     return `<table class="cohort">
-      <thead><tr><th>유입월</th>${cols.map(c=>`<th>M+${c}</th>`).join('')}</tr></thead>
+      <thead><tr><th>설치월</th>${cols.map(c=>`<th>M+${c}</th>`).join('')}</tr></thead>
       <tbody>
         ${months.map(m=>`
           <tr>
@@ -189,45 +154,25 @@
             ${cols.map(c=>{
               const rec = get(m,c);
               if(!rec) return `<td class="cohort-empty">–</td>`;
-              const alpha = 0.12 + (rec.retention/100)*0.8;
-              const light = rec.retention < 45;
-              return `<td><div class="cohort-cell" style="background:rgba(13,148,136,${alpha});color:${light?'#134e4a':'#fff'}">${rec.retention}%</div></td>`;
+              const alpha = 0.12 + (rec.issue_free_rate/100)*0.8;
+              const light = rec.issue_free_rate < 90;
+              return `<td><div class="cohort-cell" style="background:rgba(13,148,136,${alpha});color:${light?'#134e4a':'#fff'}">${rec.issue_free_rate}%</div></td>`;
             }).join('')}
           </tr>`).join('')}
       </tbody>
     </table>`;
   }
 
-  function compositionDonut(summary){
-    const thisM = summary[summary.length-1];
-    const prevM = summary.length>1 ? summary[summary.length-2] : null;
-    const newC = thisM.new_customers;
-    let retained, reactivated;
-    if(prevM){
-      retained = Math.round(prevM.total_customers * (1 - thisM.churn_rate/100));
-      reactivated = Math.max(thisM.total_customers - retained - newC, 0);
-    } else {
-      retained = thisM.total_customers - newC;
-      reactivated = 0;
-    }
-    // 반올림 오차 보정
-    const sum = retained+newC+reactivated;
-    if(sum !== thisM.total_customers){ retained += (thisM.total_customers - sum); }
-
-    const segs = [
-      {label:'재구매 고객', value:Math.max(retained,0), color:'#0d9488'},
-      {label:'신규', value:newC, color:'#5eead4'},
-      {label:'휴면 복귀', value:Math.max(reactivated,0), color:'#134e4a'}
-    ];
-    const total = segs.reduce((s,x)=>s+x.value,0) || 1;
-
+  function compositionDonut(type, thisM){
+    const total = type.reduce((s,t)=>s+t.count,0) || 1;
+    const colors = {'B2C 신규':'#0d9488','B2B 신규':'#5eead4','B2B 재발주':'#134e4a'};
     const size=160,r=60,cx=size/2,cy=size/2,sw=24;
     const circumference = 2*Math.PI*r;
     let offset=0;
-    const arcs = segs.map(s=>{
-      const frac = s.value/total;
+    const arcs = type.map(t=>{
+      const frac = t.count/total;
       const dash = frac*circumference;
-      const el = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${s.color}" stroke-width="${sw}"
+      const el = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${colors[t.kind]||'#ccc'}" stroke-width="${sw}"
         stroke-dasharray="${dash} ${circumference-dash}" stroke-dashoffset="${-offset}" transform="rotate(-90 ${cx} ${cy})"></circle>`;
       offset += dash;
       return el;
@@ -236,47 +181,48 @@
     return `<div class="donut-wrap">
       <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
         ${arcs}
-        <text x="${cx}" y="${cy-6}" text-anchor="middle" font-size="20" font-weight="700" fill="var(--text)">${won(thisM.total_customers)}</text>
-        <text x="${cx}" y="${cy+14}" text-anchor="middle" font-size="11" fill="var(--sub)">전체 고객</text>
+        <text x="${cx}" y="${cy-6}" text-anchor="middle" font-size="20" font-weight="700" fill="var(--willy-text)">${won(total)}</text>
+        <text x="${cx}" y="${cy+14}" text-anchor="middle" font-size="11" fill="var(--willy-sub)">총 설치건수</text>
       </svg>
       <div class="donut-legend">
-        ${segs.map(s=>`
+        ${type.map(t=>`
           <div class="legend-row">
-            <span><span class="legend-dot" style="background:${s.color}"></span><span class="legend-name">${s.label}</span></span>
-            <span>${won(s.value)}명</span>
+            <span><span class="legend-dot" style="background:${colors[t.kind]||'#ccc'}"></span><span class="legend-name">${t.kind}</span></span>
+            <span>${won(t.count)}건</span>
           </div>`).join('')}
-        <div class="ltv-box">고객 1명 평생가치<br><b>${won(thisM.ltv)}원</b></div>
+        <div class="avg-box">평균 계약단가<br><b>${won(thisM.avg_deal)}만원</b></div>
       </div>
     </div>`;
   }
 
-  function repeatBars(repeat){
-    const max = Math.max(...repeat.map(r=>r.rate));
-    return repeat.map(r=>`
-      <div class="repeat-row">
-        <div class="name">${r.period}</div>
-        <div class="repeat-bar-bg"><div class="repeat-bar-fg" style="width:${r.rate/max*100}%"></div></div>
-        <div class="val">${pct(r.rate)}%</div>
+  function partnerList(partners){
+    const sorted = partners.sort((a,b)=>b.revenue-a.revenue);
+    const max = Math.max(...sorted.map(p=>p.revenue));
+    return sorted.map(p=>`
+      <div class="partner-row">
+        <div class="name">${p.partner_name}</div>
+        <div class="partner-bar-bg"><div class="partner-bar-fg" style="width:${p.revenue/max*100}%"></div></div>
+        <div class="val">${p.order_count}건 · ${won(p.revenue)}만원</div>
       </div>`).join('');
   }
 
-  function churnChart(summary){
+  function asChart(summary){
     const W=520,H=220,padL=36,padR=16,padT=16,padB=30;
     const innerW=W-padL-padR, innerH=H-padT-padB;
     const target = 5;
-    const maxV = Math.max(...summary.map(s=>s.churn_rate), target)*1.3;
+    const maxV = Math.max(...summary.map(s=>s.as_rate), target)*1.3;
     const step = innerW/(summary.length-1);
     const yOf = v => padT + innerH - (v/maxV*innerH);
 
-    const pts = summary.map((s,i)=>`${padL+step*i},${yOf(s.churn_rate)}`).join(' ');
-    const dots = summary.map((s,i)=>`<circle cx="${padL+step*i}" cy="${yOf(s.churn_rate)}" r="3.5" fill="var(--accent)"></circle>`).join('');
-    const labels = summary.map((s,i)=>`<text x="${padL+step*i}" y="${H-8}" text-anchor="middle" font-size="11" fill="var(--sub)">${s.month}</text>`).join('');
+    const pts = summary.map((s,i)=>`${padL+step*i},${yOf(s.as_rate)}`).join(' ');
+    const dots = summary.map((s,i)=>`<circle cx="${padL+step*i}" cy="${yOf(s.as_rate)}" r="3.5" fill="var(--accent)"></circle>`).join('');
+    const labels = summary.map((s,i)=>`<text x="${padL+step*i}" y="${H-8}" text-anchor="middle" font-size="11" fill="var(--willy-sub)">${s.month}</text>`).join('');
     const targetY = yOf(target);
 
     return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;">
-      <line x1="${padL}" y1="${padT+innerH}" x2="${W-padR}" y2="${padT+innerH}" stroke="var(--line)" />
+      <line x1="${padL}" y1="${padT+innerH}" x2="${W-padR}" y2="${padT+innerH}" stroke="#E4E4E7" />
       <line x1="${padL}" y1="${targetY}" x2="${W-padR}" y2="${targetY}" stroke="#a1a1aa" stroke-width="1.5" stroke-dasharray="4 4" />
-      <text x="${W-padR}" y="${targetY-6}" text-anchor="end" font-size="10" fill="var(--sub)">목표 ${target}%</text>
+      <text x="${W-padR}" y="${targetY-6}" text-anchor="end" font-size="10" fill="var(--willy-sub)">목표 ${target}%</text>
       <polyline points="${pts}" fill="none" stroke="var(--accent)" stroke-width="2"></polyline>
       ${dots}${labels}
     </svg>`;

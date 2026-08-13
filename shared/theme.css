@@ -1,0 +1,77 @@
+/* WILLY 브랜드 공통 테마 — 사이드바/탑바/기본 톤 */
+:root{
+  --willy-navy:#141B3C;
+  --willy-navy-light:#1E2650;
+  --willy-lg:#D81A3C;
+  --willy-lg-bg:#FFE1E8;
+  --willy-sm:#1338BE;
+  --willy-sm-bg:#DFEAFF;
+  --willy-text:#1A1A22;
+  --willy-sub:#8A8CA0;
+  --willy-bg-a:#EEF1FB;
+  --willy-bg-b:#FFFFFF;
+  --sidebar-w:232px;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  font-family:'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+  background:linear-gradient(160deg, var(--willy-bg-a), var(--willy-bg-b));
+  color:var(--willy-text);
+  -webkit-font-smoothing:antialiased;
+}
+
+/* 사이드바 */
+.willy-sidebar{
+  position:fixed; top:0; left:0; bottom:0; width:var(--sidebar-w);
+  background:var(--willy-navy); color:#fff; display:flex; flex-direction:column;
+  padding:20px 14px; z-index:100;
+}
+.willy-sidebar .logo-row{display:block; padding:6px 10px 26px;}
+.willy-sidebar .logo-row svg{width:104px; height:auto; display:block;}
+.willy-nav{flex:1; display:flex; flex-direction:column; gap:2px;}
+.willy-nav a{
+  display:flex; align-items:center; gap:10px;
+  padding:10px 12px; border-radius:10px;
+  color:#A8ADD0; text-decoration:none; font-size:13.5px; font-weight:500;
+  transition:background .12s ease, color .12s ease;
+}
+.willy-nav a svg{width:18px; height:18px; flex-shrink:0;}
+.willy-nav a:hover{background:rgba(255,255,255,.07); color:#fff;}
+.willy-nav a.active{background:rgba(255,255,255,.1); color:#fff; font-weight:700;}
+.willy-sidebar .sb-footer{padding:12px 10px 4px; border-top:1px solid rgba(255,255,255,.12); margin-top:8px;}
+.willy-sidebar .sb-footer .name{font-size:12.5px; font-weight:700; color:#fff;}
+.willy-sidebar .sb-footer .role{font-size:11px; color:#8A8CA0; margin-top:1px;}
+
+/* 본문 영역 */
+.willy-main{margin-left:var(--sidebar-w); min-height:100vh;}
+.willy-topbar{
+  display:flex; align-items:center; justify-content:space-between; gap:16px;
+  padding:18px 28px; background:rgba(255,255,255,.7); backdrop-filter:blur(6px);
+  border-bottom:1px solid #E4E4E7; position:sticky; top:0; z-index:50;
+}
+.willy-topbar .titles h1{font-size:19px; margin:0 0 3px; font-weight:800; color:var(--willy-text); letter-spacing:-.3px;}
+.willy-topbar .titles p{font-size:12.5px; margin:0; color:var(--willy-sub);}
+.willy-topbar .meta{display:flex; align-items:center; gap:14px; font-size:12px; color:var(--willy-sub); flex-shrink:0;}
+.willy-topbar .live{display:flex; align-items:center; gap:5px; font-weight:700; color:#16a34a;}
+.willy-topbar .live .dot{width:7px; height:7px; border-radius:50%; background:#16a34a; animation:willy-pulse 1.6s infinite;}
+@keyframes willy-pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+.willy-topbar .range{padding:6px 12px; background:#fff; border:1px solid #E4E4E7; border-radius:8px; white-space:nowrap;}
+
+.willy-content{padding:24px 28px 60px; max-width:1280px;}
+
+/* 모바일: 사이드바 → 하단 탭바 */
+@media (max-width:900px){
+  .willy-sidebar{
+    top:auto; bottom:0; left:0; right:0; width:auto; height:60px;
+    flex-direction:row; padding:0 2px; align-items:center; overflow-x:auto;
+  }
+  .willy-sidebar .logo-row,.willy-sidebar .sb-footer{display:none;}
+  .willy-nav{flex-direction:row; flex:1; justify-content:space-around; gap:0;}
+  .willy-nav a{flex-direction:column; gap:2px; padding:8px 6px; font-size:9.5px; white-space:nowrap; border-radius:8px;}
+  .willy-nav a svg{width:17px; height:17px;}
+  .willy-main{margin-left:0; padding-bottom:60px;}
+  .willy-topbar{padding:14px 16px;}
+  .willy-topbar .meta{display:none;}
+  .willy-content{padding:16px 16px 40px;}
+}

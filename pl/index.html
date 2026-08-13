@@ -3,61 +3,45 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>손익 대시보드</title>
+<title>손익 대시보드 · WILLY</title>
 <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
+<link rel="stylesheet" href="../shared/theme.css" />
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../shared/shell.js"></script>
 <style>
-  :root{
-    --accent:#16a34a;
-    --accent-light:#bbf7d0;
-    --accent-bg:#f0fdf4;
-    --text:#18181b;
-    --sub:#71717a;
-    --line:#e4e4e7;
-    --bg:#ffffff;
-    --card:#ffffff;
-    --good:#16a34a;
-    --bad:#dc2626;
-    --gray:#d4d4d8;
-  }
-  *{box-sizing:border-box;}
-  body{margin:0;background:var(--bg);color:var(--text);font-family:'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;-webkit-font-smoothing:antialiased;}
-  .wrap{max-width:1200px;margin:0 auto;padding:24px 16px 60px;}
-  header{margin-bottom:20px;}
-  header h1{font-size:22px;margin:0 0 6px;}
-  header p{font-size:13px;color:var(--sub);margin:0;}
+  :root{ --accent:#16a34a; --accent-light:#bbf7d0; --accent-bg:#f0fdf4; --bad:#dc2626; --gray:#d4d4d8; }
   .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;}
-  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px;}
-  .card .label{font-size:12px;color:var(--sub);margin-bottom:8px;}
+  .card{background:#fff;border:1px solid #E4E4E7;border-radius:14px;padding:16px 18px;}
+  .card .label{font-size:12px;color:var(--willy-sub);margin-bottom:8px;}
   .card .value{font-size:26px;font-weight:700;letter-spacing:-0.5px;}
   .card .value.big{font-size:30px;color:var(--accent);}
-  .card .sub{font-size:12px;color:var(--sub);margin-top:6px;}
+  .card .sub{font-size:12px;color:var(--willy-sub);margin-top:6px;}
   .card .barbg{background:#f4f4f5;border-radius:999px;height:6px;margin-top:10px;overflow:hidden;}
   .card .barfg{background:var(--accent);height:100%;border-radius:999px;}
-  .panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin-bottom:16px;}
+  .panel{background:#fff;border:1px solid #E4E4E7;border-radius:14px;padding:18px 20px;margin-bottom:16px;}
   .panel h2{font-size:15px;margin:0 0 14px;}
   .grid2{display:grid;grid-template-columns:1.3fr 1fr;gap:16px;}
   table{width:100%;border-collapse:collapse;font-size:13px;}
   th,td{text-align:right;padding:8px 6px;white-space:nowrap;}
   th:first-child,td:first-child{text-align:left;}
-  thead th{color:var(--sub);font-weight:500;border-bottom:1px solid var(--line);font-size:12px;}
+  thead th{color:var(--willy-sub);font-weight:500;border-bottom:1px solid #E4E4E7;font-size:12px;}
   tbody td{border-bottom:1px solid #f4f4f5;}
   tbody tr:last-child td{border-bottom:none;}
-  .tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:999px;background:#f4f4f5;color:var(--sub);}
+  .tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:999px;background:#f4f4f5;color:var(--willy-sub);}
   .tag.fixed{background:#f4f4f5;color:#52525b;}
   .tag.var{background:var(--accent-bg);color:var(--accent);}
   .margin-row{display:flex;align-items:center;gap:10px;padding:8px 0;}
-  .margin-row .name{width:90px;flex-shrink:0;font-size:13px;}
+  .margin-row .name{width:110px;flex-shrink:0;font-size:13px;}
   .margin-bar-bg{flex:1;background:#f4f4f5;border-radius:999px;height:10px;overflow:hidden;position:relative;}
   .margin-bar-fg{height:100%;border-radius:999px;}
   .margin-row .val{width:50px;text-align:right;font-size:13px;font-weight:600;flex-shrink:0;}
   .table-scroll{overflow-x:auto;}
   .gauge-wrap{text-align:center;}
   .gauge-num{font-size:28px;font-weight:700;color:var(--accent);margin-top:-50px;}
-  .gauge-sub{font-size:12px;color:var(--sub);margin-top:2px;}
-  .gauge-be{margin-top:14px;padding:10px;background:var(--accent-bg);border-radius:10px;font-size:12px;color:var(--sub);}
-  .gauge-be b{color:var(--text);font-size:14px;}
-  .loading,.err{padding:40px;text-align:center;color:var(--sub);font-size:13px;}
+  .gauge-sub{font-size:12px;color:var(--willy-sub);margin-top:2px;}
+  .gauge-be{margin-top:14px;padding:10px;background:var(--accent-bg);border-radius:10px;font-size:12px;color:var(--willy-sub);}
+  .gauge-be b{color:var(--willy-text);font-size:14px;}
+  .loading,.err{padding:40px;text-align:center;color:var(--willy-sub);font-size:13px;}
   .err{color:var(--bad);}
   @media (max-width:860px){
     .cards{grid-template-columns:repeat(2,1fr);}
@@ -66,19 +50,14 @@
 </style>
 </head>
 <body>
-<div class="wrap">
-  <header>
-    <h1>손익 대시보드</h1>
-    <p>답하는 질문 — 이번 달 남았나 밑졌나? 줄인다면 어디부터 줄이나?</p>
-  </header>
-  <div id="content"><div class="loading">불러오는 중...</div></div>
-</div>
+<div id="shell-root"></div>
+<div id="content"><div class="loading">불러오는 중...</div></div>
 
 <script>
-  // ── Supabase 연결 정보 ─────────────────────────────
   const SUPABASE_URL = 'https://gsqurjwbdkenmjwspucq.supabase.co';
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdzcXVyandiZGtlbm1qd3NwdWNxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY1NTY3MjIsImV4cCI6MjEwMjEzMjcyMn0.VWwpg2uLfFWquknfnKjsj6a_-AfTdQJS8LVw9dSQ0xo';
-  // ───────────────────────────────────────────────────
+
+  WillyShell.mount({active:'pl', title:'손익 대시보드', subtitle:'답하는 질문 — 이번 달 남았나 밑졌나? 기기값 vs 설치비, 어디서 새나?'});
 
   const { createClient } = supabase;
   const won = n => Math.round(n).toLocaleString('ko-KR');
@@ -86,10 +65,6 @@
 
   async function main(){
     const content = document.getElementById('content');
-    if(SUPABASE_URL === 'YOUR_PROJECT_URL' || SUPABASE_ANON_KEY === 'YOUR_ANON_KEY'){
-      content.innerHTML = `<div class="err">아직 Supabase 연결 정보가 입력되지 않았습니다.<br>파일 아래쪽의 SUPABASE_URL, SUPABASE_ANON_KEY 두 줄을 채워주세요.</div>`;
-      return;
-    }
     try{
       const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
       const [{data:summary,error:e1},{data:cost,error:e2},{data:margin,error:e3}] = await Promise.all([
@@ -110,18 +85,18 @@
     const thisM = summary[summary.length-1];
     const prevM = summary.length>1 ? summary[summary.length-2] : null;
 
-    const totalCost = thisM.cogs + thisM.sga + thisM.other_cost;
+    const totalCost = thisM.device_cost + thisM.install_fee + thisM.payroll + thisM.other_cost;
     const opProfit = thisM.revenue - totalCost;
     const opMarginRate = thisM.revenue ? opProfit/thisM.revenue*100 : 0;
     const beRate = totalCost ? thisM.revenue/totalCost*100 : 0;
 
-    const opTarget = 1100; // 목표 영업이익 (만원)
+    const opTarget = 950;
     const opTargetRate = opTarget ? opProfit/opTarget*100 : 0;
-    const marginTarget = 12; // 목표 영업이익률 %
+    const marginTarget = 10;
     const marginGap = marginTarget - opMarginRate;
 
     let prevTotalCost = null;
-    if(prevM){ prevTotalCost = prevM.cogs+prevM.sga+prevM.other_cost; }
+    if(prevM){ prevTotalCost = prevM.device_cost+prevM.install_fee+prevM.payroll+prevM.other_cost; }
     const costDiff = prevTotalCost!==null ? totalCost-prevTotalCost : null;
 
     const totalCostItems = cost.reduce((s,c)=>s+c.amount,0);
@@ -138,7 +113,7 @@
         <div class="card">
           <div class="label">영업이익률</div>
           <div class="value">${pct(opMarginRate)}%</div>
-          <div class="sub">${marginGap>0 ? `목표 12%까지 ${pct(marginGap)}%p 부족` : `목표 12% 달성`}</div>
+          <div class="sub">${marginGap>0 ? `목표 10%까지 ${pct(marginGap)}%p 부족` : `목표 10% 달성`}</div>
         </div>
         <div class="card">
           <div class="label">손익분기 달성률</div>
@@ -154,7 +129,7 @@
 
       <div class="grid2">
         <div class="panel">
-          <h2>손익 구조</h2>
+          <h2>손익 구조 (기기값 · 설치비 분리)</h2>
           ${waterfall(thisM, opProfit)}
         </div>
         <div class="panel">
@@ -182,7 +157,7 @@
           </div>
         </div>
         <div class="panel">
-          <h2>상품별 공헌이익률</h2>
+          <h2>상품유형별 공헌이익률</h2>
           ${marginList(margin)}
         </div>
       </div>
@@ -197,7 +172,7 @@
       return `<div class="margin-row">
         <div class="name">${m.product}</div>
         <div class="margin-bar-bg"><div class="margin-bar-fg" style="width:${w}%;background:${isNeg?'var(--bad)':'var(--accent)'}"></div></div>
-        <div class="val" style="color:${isNeg?'var(--bad)':'var(--text)'}">${pct(m.margin_rate)}%</div>
+        <div class="val" style="color:${isNeg?'var(--bad)':'var(--willy-text)'}">${pct(m.margin_rate)}%</div>
       </div>`;
     }).join('');
   }
@@ -211,26 +186,28 @@
     const cats = [];
     let cum = m.revenue;
     cats.push({label:'매출', top:yOf(m.revenue), bottom:yOf(0), color:'var(--accent)', text:won(m.revenue)});
-    cats.push({label:'매출원가', top:yOf(cum), bottom:yOf(cum-m.cogs), color:'var(--gray)', text:'-'+won(m.cogs)});
-    cum -= m.cogs;
-    cats.push({label:'판관비', top:yOf(cum), bottom:yOf(cum-m.sga), color:'var(--gray)', text:'-'+won(m.sga)});
-    cum -= m.sga;
+    cats.push({label:'기기매입비', top:yOf(cum), bottom:yOf(cum-m.device_cost), color:'var(--gray)', text:'-'+won(m.device_cost)});
+    cum -= m.device_cost;
+    cats.push({label:'설치도급비', top:yOf(cum), bottom:yOf(cum-m.install_fee), color:'var(--gray)', text:'-'+won(m.install_fee)});
+    cum -= m.install_fee;
+    cats.push({label:'인건비', top:yOf(cum), bottom:yOf(cum-m.payroll), color:'var(--gray)', text:'-'+won(m.payroll)});
+    cum -= m.payroll;
     cats.push({label:'기타비용', top:yOf(cum), bottom:yOf(cum-m.other_cost), color:'var(--gray)', text:'-'+won(m.other_cost)});
     cum -= m.other_cost;
     cats.push({label:'영업이익', top:yOf(Math.max(opProfit,0)), bottom:yOf(Math.min(opProfit,0)), color:'var(--accent)', text:won(opProfit)});
 
     const step = innerW/cats.length;
-    const bw = step*0.55;
+    const bw = step*0.6;
     const bars = cats.map((c,i)=>{
       const x = padL+step*i+(step-bw)/2;
       const top = Math.min(c.top,c.bottom), h = Math.abs(c.bottom-c.top)||2;
       return `<rect x="${x}" y="${top}" width="${bw}" height="${h}" rx="3" fill="${c.color}"></rect>
-              <text x="${x+bw/2}" y="${top-6}" text-anchor="middle" font-size="11" fill="var(--sub)">${c.text}</text>
-              <text x="${x+bw/2}" y="${H-padB+20}" text-anchor="middle" font-size="11" fill="var(--sub)">${c.label}</text>`;
+              <text x="${x+bw/2}" y="${top-6}" text-anchor="middle" font-size="10.5" fill="var(--willy-sub)">${c.text}</text>
+              <text x="${x+bw/2}" y="${H-padB+20}" text-anchor="middle" font-size="10.5" fill="var(--willy-sub)">${c.label}</text>`;
     }).join('');
 
     return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;">
-      <line x1="${padL}" y1="${yOf(0)}" x2="${W-padR}" y2="${yOf(0)}" stroke="var(--line)" />
+      <line x1="${padL}" y1="${yOf(0)}" x2="${W-padR}" y2="${yOf(0)}" stroke="#E4E4E7" />
       ${bars}
     </svg>`;
   }
@@ -267,9 +244,9 @@
         <svg viewBox="0 0 ${W} ${H}" style="width:100%;max-width:320px;height:auto;">
           <path d="${bg}" fill="none" stroke="#f4f4f5" stroke-width="${sw}" stroke-linecap="round"></path>
           <path d="${fg}" fill="none" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"></path>
-          <text x="${lx}" y="${cy+18}" font-size="10" fill="var(--sub)" text-anchor="middle">0%</text>
-          <text x="${cx}" y="${cy-r-10}" font-size="10" fill="var(--sub)" text-anchor="middle">75%</text>
-          <text x="${mx}" y="${cy+18}" font-size="10" fill="var(--sub)" text-anchor="middle">150%</text>
+          <text x="${lx}" y="${cy+18}" font-size="10" fill="var(--willy-sub)" text-anchor="middle">0%</text>
+          <text x="${cx}" y="${cy-r-10}" font-size="10" fill="var(--willy-sub)" text-anchor="middle">75%</text>
+          <text x="${mx}" y="${cy+18}" font-size="10" fill="var(--willy-sub)" text-anchor="middle">150%</text>
         </svg>
         <div class="gauge-num">${pct(rate)}%</div>
         <div class="gauge-sub">매출 ÷ 총비용</div>

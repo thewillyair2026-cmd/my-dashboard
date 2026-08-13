@@ -3,24 +3,26 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>경영 대시보드 모음</title>
+<title>WILLY 경영 대시보드</title>
 <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
 <style>
   :root{
-    --text:#18181b;
-    --sub:#71717a;
+    --willy-navy:#141B3C;
+    --text:#1A1A22;
+    --sub:#8A8CA0;
     --line:#e4e4e7;
-    --bg:#ffffff;
   }
   *{box-sizing:border-box;}
-  body{margin:0;background:var(--bg);color:var(--text);font-family:'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;-webkit-font-smoothing:antialiased;}
-  .wrap{max-width:900px;margin:0 auto;padding:48px 20px 60px;}
-  header{margin-bottom:32px;text-align:center;}
-  header h1{font-size:26px;margin:0 0 8px;}
+  body{margin:0;background:linear-gradient(160deg,#EEF1FB,#FFFFFF);color:var(--text);font-family:'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:920px;margin:0 auto;padding:56px 20px 60px;}
+  header{margin-bottom:36px;text-align:center;}
+  header .logo{margin:0 auto 22px;width:120px;}
+  header h1{font-size:24px;margin:0 0 8px;font-weight:800;color:var(--willy-navy);}
   header p{font-size:14px;color:var(--sub);margin:0;}
   .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
   a.card{
     display:block;
+    background:#fff;
     border:1px solid var(--line);
     border-radius:16px;
     padding:22px 20px;
@@ -28,9 +30,9 @@
     color:inherit;
     transition:box-shadow .15s ease, transform .15s ease;
   }
-  a.card:hover{box-shadow:0 8px 24px rgba(0,0,0,.08);transform:translateY(-2px);}
+  a.card:hover{box-shadow:0 10px 28px rgba(20,27,60,.10);transform:translateY(-2px);}
   .card .bar{width:32px;height:4px;border-radius:999px;margin-bottom:14px;}
-  .card h2{font-size:16px;margin:0 0 6px;}
+  .card h2{font-size:16px;margin:0 0 6px;font-weight:700;}
   .card p{font-size:12px;color:var(--sub);margin:0;line-height:1.5;}
   @media (max-width:700px){ .grid{grid-template-columns:repeat(2,1fr);} }
   @media (max-width:460px){ .grid{grid-template-columns:1fr;} }
@@ -39,34 +41,41 @@
 <body>
 <div class="wrap">
   <header>
+    <svg class="logo" width="656" height="132" viewBox="0 0 656 132" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M501.642 0H537.276L578.942 58.0691L620.42 0H655.111L593.648 80.1278V131.975H563.105V80.1278L501.642 0Z" fill="#141B3C"/>
+      <path d="M420.872 0H449.718V109.916H535.124V131.975H420.872V0Z" fill="#141B3C"/>
+      <path d="M289.73 0H318.576V109.916H403.983V131.975H289.73V0Z" fill="#141B3C"/>
+      <path d="M229.934 0H260.289V131.975H229.934V0Z" fill="#141B3C"/>
+      <path d="M171.379 131.975H140.082L106.9 36.0104L73.5291 131.975H41.8551L9.15527e-05 0H31.6741L59.0118 101.809L92.5712 3.77072H121.606L155.165 101.432L182.314 0H213.046L171.379 131.975Z" fill="#141B3C"/>
+    </svg>
     <h1>경영 대시보드</h1>
     <p>영역별 숫자를 한눈에 확인하세요</p>
   </header>
   <div class="grid">
+    <a class="card" href="sales/index.html">
+      <div class="bar" style="background:#2563eb"></div>
+      <h2>영업</h2>
+      <p>월별 매출, 설치 파이프라인, 담당자·브랜드별 실적</p>
+    </a>
     <a class="card" href="marketing/index.html">
       <div class="bar" style="background:#ea580c"></div>
       <h2>마케팅</h2>
       <p>채널별 성과, ROAS, 예산 소진 페이싱</p>
     </a>
-    <a class="card" href="hr/index.html">
-      <div class="bar" style="background:#7c3aed"></div>
-      <h2>인사</h2>
-      <p>재직 인원, 인건비 비중, 이직률, 초과근무</p>
-    </a>
-    <a class="card" href="sales/index.html">
-      <div class="bar" style="background:#2563eb"></div>
-      <h2>영업</h2>
-      <p>월별 매출, 파이프라인 전환율, 담당자·상품 순위</p>
+    <a class="card" href="customer/index.html">
+      <div class="bar" style="background:#0d9488"></div>
+      <h2>고객</h2>
+      <p>설치 후 AS 발생 시점, B2B 파트너사, 거래 구성</p>
     </a>
     <a class="card" href="pl/index.html">
       <div class="bar" style="background:#16a34a"></div>
       <h2>손익</h2>
-      <p>영업이익, 손익분기, 비용 구조, 상품별 마진</p>
+      <p>영업이익, 손익분기, 기기값·설치비 구조, 상품 마진</p>
     </a>
-    <a class="card" href="customer/index.html">
-      <div class="bar" style="background:#0d9488"></div>
-      <h2>고객</h2>
-      <p>코호트 잔존율, 재구매율, 이탈률, LTV</p>
+    <a class="card" href="hr/index.html">
+      <div class="bar" style="background:#7c3aed"></div>
+      <h2>인사</h2>
+      <p>재직 인원, 인건비 비중, 부서별 초과근무</p>
     </a>
     <a class="card" href="exec/index.html">
       <div class="bar" style="background:linear-gradient(90deg,#2563eb,#ea580c,#0d9488,#16a34a,#7c3aed)"></div>

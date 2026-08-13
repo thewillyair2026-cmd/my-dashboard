@@ -3,87 +3,63 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>경영 대시보드</title>
+<title>경영 대시보드 · WILLY</title>
 <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
+<link rel="stylesheet" href="../shared/theme.css" />
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../shared/shell.js"></script>
 <style>
   :root{
-    --text:#18181b;
-    --sub:#71717a;
-    --line:#e4e4e7;
-    --bg:#ffffff;
-    --card:#ffffff;
-    --good:#16a34a;
-    --bad:#dc2626;
-    --c-sales:#2563eb;
-    --c-mkt:#ea580c;
-    --c-cust:#0d9488;
-    --c-profit:#16a34a;
-    --c-hr:#7c3aed;
+    --c-sales:#2563eb; --c-mkt:#ea580c; --c-cust:#0d9488; --c-profit:#16a34a; --c-hr:#7c3aed;
+    --good:#16a34a; --bad:#dc2626;
   }
-  *{box-sizing:border-box;}
-  body{margin:0;background:var(--bg);color:var(--text);font-family:'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;-webkit-font-smoothing:antialiased;}
-  .wrap{max-width:1200px;margin:0 auto;padding:24px 16px 60px;}
-  header{margin-bottom:20px;}
-  header h1{font-size:22px;margin:0 0 6px;}
-  header p{font-size:13px;color:var(--sub);margin:0;}
   .cards{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:16px;}
-  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;}
+  .card{background:#fff;border:1px solid #E4E4E7;border-radius:14px;overflow:hidden;}
   .card .bar{height:4px;}
   .card .body{padding:14px 14px 16px;}
-  .card .label{font-size:12px;color:var(--sub);margin-bottom:8px;}
+  .card .label{font-size:12px;color:var(--willy-sub);margin-bottom:8px;}
   .card .value{font-size:21px;font-weight:700;letter-spacing:-0.3px;}
-  .card .sub{font-size:11.5px;color:var(--sub);margin-top:6px;line-height:1.4;}
+  .card .sub{font-size:11.5px;color:var(--willy-sub);margin-top:6px;line-height:1.4;}
   .signal{display:flex;align-items:center;gap:6px;margin-top:10px;font-size:11.5px;font-weight:600;}
   .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
   .dot.good{background:var(--good);} .signal.good{color:var(--good);}
   .dot.warn{background:#d97706;} .signal.warn{color:#d97706;}
   .dot.bad{background:var(--bad);} .signal.bad{color:var(--bad);}
-  .panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin-bottom:16px;}
+  .panel{background:#fff;border:1px solid #E4E4E7;border-radius:14px;padding:18px 20px;margin-bottom:16px;}
   .panel h2{font-size:15px;margin:0 0 14px;}
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
   .goal-row{display:flex;align-items:center;gap:10px;padding:9px 0;}
-  .goal-row .name{width:56px;flex-shrink:0;font-size:12.5px;color:var(--sub);}
+  .goal-row .name{width:56px;flex-shrink:0;font-size:12.5px;color:var(--willy-sub);}
   .goal-bar-bg{flex:1;background:#f4f4f5;border-radius:999px;height:12px;overflow:hidden;position:relative;}
   .goal-bar-fg{height:100%;border-radius:999px;}
   .goal-tick{position:absolute;top:-3px;bottom:-3px;width:1px;background:#a1a1aa;}
   .goal-row .val{width:52px;text-align:right;font-size:12.5px;font-weight:600;}
   .change-item{display:flex;gap:12px;padding:11px 0;border-bottom:1px solid #f4f4f5;}
   .change-item:last-child{border-bottom:none;}
-  .change-num{width:22px;height:22px;border-radius:50%;background:#f4f4f5;color:var(--sub);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .change-num{width:22px;height:22px;border-radius:50%;background:#f4f4f5;color:var(--willy-sub);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
   .change-body{flex:1;}
   .change-title{font-size:13px;font-weight:600;}
-  .change-desc{font-size:11.5px;color:var(--sub);margin-top:2px;}
+  .change-desc{font-size:11.5px;color:var(--willy-sub);margin-top:2px;}
   .change-val{font-size:14px;font-weight:700;flex-shrink:0;align-self:center;}
   .change-val.good{color:var(--good);} .change-val.bad{color:var(--bad);}
-  .legend{display:flex;gap:16px;font-size:11px;color:var(--sub);margin-top:8px;flex-wrap:wrap;}
+  .legend{display:flex;gap:16px;font-size:11px;color:var(--willy-sub);margin-top:8px;flex-wrap:wrap;}
   .legend span{display:inline-flex;align-items:center;gap:4px;}
   .legend i{display:inline-block;width:10px;height:10px;border-radius:2px;}
-  .loading,.err{padding:40px;text-align:center;color:var(--sub);font-size:13px;}
+  .loading,.err{padding:40px;text-align:center;color:var(--willy-sub);font-size:13px;}
   .err{color:var(--bad);}
-  @media (max-width:960px){
-    .cards{grid-template-columns:repeat(3,1fr);}
-  }
-  @media (max-width:700px){
-    .cards{grid-template-columns:repeat(2,1fr);}
-    .grid2{grid-template-columns:1fr;}
-  }
+  @media (max-width:960px){ .cards{grid-template-columns:repeat(3,1fr);} }
+  @media (max-width:700px){ .cards{grid-template-columns:repeat(2,1fr);} .grid2{grid-template-columns:1fr;} }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <header>
-    <h1>경영 대시보드</h1>
-    <p>답하는 질문 — 지금 빨간불 켜진 데가 어디인가? 이번 달 뭐가 달라졌나?</p>
-  </header>
-  <div id="content"><div class="loading">불러오는 중...</div></div>
-</div>
+<div id="shell-root"></div>
+<div id="content"><div class="loading">불러오는 중...</div></div>
 
 <script>
-  // ── Supabase 연결 정보 ─────────────────────────────
   const SUPABASE_URL = 'https://gsqurjwbdkenmjwspucq.supabase.co';
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdzcXVyandiZGtlbm1qd3NwdWNxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY1NTY3MjIsImV4cCI6MjEwMjEzMjcyMn0.VWwpg2uLfFWquknfnKjsj6a_-AfTdQJS8LVw9dSQ0xo';
-  // ───────────────────────────────────────────────────
+
+  WillyShell.mount({active:'exec', title:'경영 대시보드', subtitle:'답하는 질문 — 지금 빨간불 켜진 데가 어디인가? 이번 달 뭐가 달라졌나?'});
 
   const { createClient } = supabase;
   const won = n => Math.round(n).toLocaleString('ko-KR');
@@ -91,10 +67,6 @@
 
   async function main(){
     const content = document.getElementById('content');
-    if(SUPABASE_URL === 'YOUR_PROJECT_URL' || SUPABASE_ANON_KEY === 'YOUR_ANON_KEY'){
-      content.innerHTML = `<div class="err">아직 Supabase 연결 정보가 입력되지 않았습니다.<br>파일 아래쪽의 SUPABASE_URL, SUPABASE_ANON_KEY 두 줄을 채워주세요.</div>`;
-      return;
-    }
     try{
       const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
       const [
@@ -130,7 +102,7 @@
   }
   function signalText(s){ return s==='good' ? '정상' : s==='warn' ? '주의' : '경고'; }
 
-  function opProfitOf(p){ return p.revenue - p.cogs - p.sga - p.other_cost; }
+  function opProfitOf(p){ return p.revenue - p.device_cost - p.install_fee - p.payroll - p.other_cost; }
   function opMarginOf(p){ return p.revenue ? opProfitOf(p)/p.revenue*100 : 0; }
   function payrollRateOf(h){ return h.revenue ? h.payroll/h.revenue*100 : 0; }
 
@@ -153,12 +125,11 @@
     const areas = [
       {key:'sales', label:'매출', color:'var(--c-sales)', value:`${won(salesM.revenue)}만원`, desc:`목표 ${won(tSales.target)}만원`, r:rate(salesM.revenue,tSales.target,false), t:tSales},
       {key:'mkt', label:'광고비', color:'var(--c-mkt)', value:`${won(mktM.spend)}만원`, desc:`ROAS ${pct(mktM.roas)}%`, r:rate(mktM.roas,tRoas.target,false), t:tRoas},
-      {key:'cust', label:'고객', color:'var(--c-cust)', value:`신규 ${won(custM.new_customers)}명`, desc:`전체 ${won(custM.total_customers)}명`, r:rate(custM.new_customers,tCust.target,false), t:tCust},
+      {key:'cust', label:'고객', color:'var(--c-cust)', value:`신규 ${won(custM.new_customers)}건`, desc:`AS발생률 ${pct(custM.as_rate)}%`, r:rate(custM.new_customers,tCust.target,false), t:tCust},
       {key:'profit', label:'이익', color:'var(--c-profit)', value:`${won(opProfit)}만원`, desc:`영업이익률 ${pct(opMarginOf(plM))}%`, r:rate(opProfit,tProfit.target,false), t:tProfit},
       {key:'hr', label:'인력', color:'var(--c-hr)', value:`${pct(payrollRate)}%`, desc:`재직 ${hrM.headcount}명`, r:rate(payrollRate,tHr.target,true), t:tHr},
     ];
 
-    // 이번 달 변화 3개
     const changes = [];
     if(salesP){
       const d = (salesM.revenue-salesP.revenue)/salesP.revenue*100;
@@ -169,8 +140,8 @@
       changes.push({label:'ROAS', desc:'광고 효율 변화', delta:d, unit:'%p', good:d>=0});
     }
     if(custP){
-      const d = custM.churn_rate-custP.churn_rate;
-      changes.push({label:'이탈률', desc:'고객 이탈 속도 변화', delta:d, unit:'%p', good:d<=0});
+      const d = custM.as_rate-custP.as_rate;
+      changes.push({label:'AS 발생률', desc:'설치 품질 지표 변화', delta:d, unit:'%p', good:d<=0});
     }
     if(plP){
       const d = opMarginOf(plM)-opMarginOf(plP);
@@ -252,10 +223,10 @@
     const line = (arr, key) => arr.map((d,i)=>`${xOf(i)},${yOf(typeof key==='function'?key(d):d[key])}`).join(' ');
     const dots = (arr, key, color) => arr.map((d,i)=>`<circle cx="${xOf(i)}" cy="${yOf(typeof key==='function'?key(d):d[key])}" r="3" fill="${color}"></circle>`).join('');
 
-    const labels = sales.map((s,i)=>`<text x="${xOf(i)}" y="${H-8}" text-anchor="middle" font-size="11" fill="var(--sub)">${s.month}</text>`).join('');
+    const labels = sales.map((s,i)=>`<text x="${xOf(i)}" y="${H-8}" text-anchor="middle" font-size="11" fill="var(--willy-sub)">${s.month}</text>`).join('');
 
     return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;">
-      <line x1="${padL}" y1="${padT+innerH}" x2="${W-padR}" y2="${padT+innerH}" stroke="var(--line)" />
+      <line x1="${padL}" y1="${padT+innerH}" x2="${W-padR}" y2="${padT+innerH}" stroke="#E4E4E7" />
       <polyline points="${line(sales,'revenue')}" fill="none" stroke="var(--c-sales)" stroke-width="2.5"></polyline>
       ${dots(sales,'revenue','var(--c-sales)')}
       <polyline points="${line(pl,opProfitOf)}" fill="none" stroke="var(--c-profit)" stroke-width="2.5"></polyline>

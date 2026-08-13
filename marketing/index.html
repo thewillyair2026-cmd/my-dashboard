@@ -3,95 +3,48 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>마케팅 대시보드</title>
+<title>마케팅 대시보드 · WILLY</title>
 <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
+<link rel="stylesheet" href="../shared/theme.css" />
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../shared/shell.js"></script>
 <style>
-  :root{
-    --accent:#ea580c;
-    --accent-light:#fed7aa;
-    --accent-bg:#fff7ed;
-    --text:#18181b;
-    --sub:#71717a;
-    --line:#e4e4e7;
-    --bg:#ffffff;
-    --card:#ffffff;
-    --good:#16a34a;
-    --bad:#dc2626;
-  }
-  *{box-sizing:border-box;}
-  body{
-    margin:0;
-    background:var(--bg);
-    color:var(--text);
-    font-family:'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
-    -webkit-font-smoothing:antialiased;
-  }
-  .wrap{max-width:1200px;margin:0 auto;padding:24px 16px 60px;}
-  header{margin-bottom:20px;}
-  header h1{font-size:22px;margin:0 0 6px;}
-  header p{font-size:13px;color:var(--sub);margin:0;}
-  .cards{
-    display:grid;
-    grid-template-columns:repeat(4,1fr);
-    gap:12px;
-    margin-bottom:16px;
-  }
-  .card{
-    background:var(--card);
-    border:1px solid var(--line);
-    border-radius:14px;
-    padding:16px 18px;
-  }
-  .card .label{font-size:12px;color:var(--sub);margin-bottom:8px;}
+  :root{ --accent:#ea580c; --accent-light:#fed7aa; --accent-bg:#fff7ed; }
+  .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;}
+  .card{background:#fff;border:1px solid #E4E4E7;border-radius:14px;padding:16px 18px;}
+  .card .label{font-size:12px;color:var(--willy-sub);margin-bottom:8px;}
   .card .value{font-size:26px;font-weight:700;letter-spacing:-0.5px;}
   .card .value.big{font-size:30px;color:var(--accent);}
-  .card .sub{font-size:12px;color:var(--sub);margin-top:6px;}
+  .card .sub{font-size:12px;color:var(--willy-sub);margin-top:6px;}
   .card .barbg{background:#f4f4f5;border-radius:999px;height:6px;margin-top:10px;overflow:hidden;}
   .card .barfg{background:var(--accent);height:100%;border-radius:999px;}
-  .panel{
-    background:var(--card);
-    border:1px solid var(--line);
-    border-radius:14px;
-    padding:18px 20px;
-    margin-bottom:16px;
-  }
+  .panel{background:#fff;border:1px solid #E4E4E7;border-radius:14px;padding:18px 20px;margin-bottom:16px;}
   .panel h2{font-size:15px;margin:0 0 14px;}
-  .grid2{
-    display:grid;
-    grid-template-columns:1.3fr 1fr;
-    gap:16px;
-  }
+  .grid2{display:grid;grid-template-columns:1.3fr 1fr;gap:16px;}
   table{width:100%;border-collapse:collapse;font-size:13px;}
   th,td{text-align:right;padding:8px 6px;white-space:nowrap;}
   th:first-child,td:first-child{text-align:left;}
-  thead th{color:var(--sub);font-weight:500;border-bottom:1px solid var(--line);font-size:12px;}
+  thead th{color:var(--willy-sub);font-weight:500;border-bottom:1px solid #E4E4E7;font-size:12px;}
   tbody td{border-bottom:1px solid #f4f4f5;}
   tbody tr:last-child td{border-bottom:none;}
-  tr.total td{font-weight:700;border-top:2px solid var(--line);border-bottom:none;padding-top:10px;}
+  tr.total td{font-weight:700;border-top:2px solid #E4E4E7;border-bottom:none;padding-top:10px;}
+  .offline-tag{font-size:10px;background:#f4f4f5;color:var(--willy-sub);padding:1px 6px;border-radius:999px;margin-left:6px;}
   .roas-cell{display:flex;align-items:center;justify-content:flex-end;gap:6px;}
   .roas-bar-bg{width:50px;height:6px;background:#f4f4f5;border-radius:999px;overflow:hidden;}
   .roas-bar-fg{height:100%;background:var(--accent);border-radius:999px;}
   .table-scroll{overflow-x:auto;}
   .pacing-row{margin-bottom:10px;}
-  .pacing-row .plabel{display:flex;justify-content:space-between;font-size:12px;color:var(--sub);margin-bottom:4px;}
+  .pacing-row .plabel{display:flex;justify-content:space-between;font-size:12px;color:var(--willy-sub);margin-bottom:4px;}
   .pacing-bg{background:#f4f4f5;border-radius:999px;height:14px;overflow:hidden;}
   .pacing-fg{height:100%;border-radius:999px;}
   .pacing-fg.budget{background:var(--accent);}
   .pacing-fg.days{background:#a1a1aa;}
-  .pacing-msg{
-    margin:14px 0;
-    padding:12px 14px;
-    background:var(--accent-bg);
-    border-radius:10px;
-    font-size:13px;
-    line-height:1.5;
-  }
+  .pacing-msg{margin:14px 0;padding:12px 14px;background:var(--accent-bg);border-radius:10px;font-size:13px;line-height:1.5;}
   .pacing-msg b{color:var(--accent);}
-  .pacing-foot{display:flex;justify-content:space-between;font-size:12px;color:var(--sub);border-top:1px solid var(--line);padding-top:10px;margin-top:14px;}
-  .pacing-foot div b{display:block;font-size:15px;color:var(--text);font-weight:700;margin-top:2px;}
-  .loading,.err{padding:40px;text-align:center;color:var(--sub);font-size:13px;}
-  .err{color:var(--bad);}
+  .pacing-foot{display:flex;justify-content:space-between;font-size:12px;color:var(--willy-sub);border-top:1px solid #E4E4E7;padding-top:10px;margin-top:14px;}
+  .pacing-foot div b{display:block;font-size:15px;color:var(--willy-text);font-weight:700;margin-top:2px;}
+  .loading,.err{padding:40px;text-align:center;color:var(--willy-sub);font-size:13px;}
+  .err{color:#dc2626;}
   @media (max-width:860px){
     .cards{grid-template-columns:repeat(2,1fr);}
     .grid2{grid-template-columns:1fr;}
@@ -99,35 +52,21 @@
 </style>
 </head>
 <body>
-<div class="wrap">
-  <header>
-    <h1>마케팅 대시보드</h1>
-    <p>답하는 질문 — 어느 채널에 더 쓰고 어디를 끊나? 고객 한 명 데려오는 데 얼마 드나?</p>
-  </header>
-
-  <div id="content">
-    <div class="loading">불러오는 중...</div>
-  </div>
-</div>
+<div id="shell-root"></div>
+<div id="content"><div class="loading">불러오는 중...</div></div>
 
 <script>
-  // ── Supabase 연결 정보 ─────────────────────────────
-  // Project Settings → API 에서 복사한 값을 아래 두 줄에 넣어주세요.
   const SUPABASE_URL = 'https://gsqurjwbdkenmjwspucq.supabase.co';
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdzcXVyandiZGtlbm1qd3NwdWNxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY1NTY3MjIsImV4cCI6MjEwMjEzMjcyMn0.VWwpg2uLfFWquknfnKjsj6a_-AfTdQJS8LVw9dSQ0xo';
-  // ───────────────────────────────────────────────────
+
+  WillyShell.mount({active:'marketing', title:'마케팅 대시보드', subtitle:'답하는 질문 — 어느 채널에 더 쓰고 어디를 끊나? 설치 고객 한 명 데려오는 데 얼마 드나?'});
 
   const { createClient } = supabase;
-
   const won = n => Math.round(n).toLocaleString('ko-KR');
   const pct = n => (Math.round(n*10)/10).toLocaleString('ko-KR');
 
   async function main(){
     const content = document.getElementById('content');
-    if(SUPABASE_URL === 'YOUR_PROJECT_URL' || SUPABASE_ANON_KEY === 'YOUR_ANON_KEY'){
-      content.innerHTML = `<div class="err">아직 Supabase 연결 정보가 입력되지 않았습니다.<br>파일 아래쪽의 SUPABASE_URL, SUPABASE_ANON_KEY 두 줄을 채워주세요.</div>`;
-      return;
-    }
     try{
       const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
       const [{data:channel,error:e1}, {data:monthly,error:e2}, {data:budget,error:e3}] = await Promise.all([
@@ -137,7 +76,6 @@
       ]);
       if(e1||e2||e3) throw (e1||e2||e3);
       if(!channel?.length || !monthly?.length || !budget?.length) throw new Error('데이터가 비어 있습니다.');
-
       render(channel, monthly, budget[0]);
     }catch(err){
       content.innerHTML = `<div class="err">데이터를 불러오지 못했습니다.<br>${(err && err.message) || err}</div>`;
@@ -146,15 +84,13 @@
   }
 
   function render(channel, monthly, budget){
-    // 채널별 파생 지표 계산
-    // 금액 필드(spend, revenue)는 '만원' 단위로 저장되어 있다고 가정.
-    // CPC·CPA는 값이 작아 만원 단위로 보면 0으로 보이므로 원 단위로 환산해서 보여준다.
     const rows = channel.map(c=>{
-      const ctr = c.impressions ? c.clicks/c.impressions*100 : 0;
-      const cpc = c.clicks ? c.spend*10000/c.clicks : 0;
+      const isOffline = c.clicks === 0;
+      const ctr = (!isOffline && c.impressions) ? c.clicks/c.impressions*100 : null;
+      const cpc = (!isOffline && c.clicks) ? c.spend*10000/c.clicks : null;
       const cpa = c.conversions ? c.spend*10000/c.conversions : 0;
       const roas = c.spend ? c.revenue/c.spend*100 : 0;
-      return {...c, ctr, cpc, cpa, roas};
+      return {...c, isOffline, ctr, cpc, cpa, roas};
     });
     const totalSpend = rows.reduce((s,r)=>s+r.spend,0);
     const totalImp = rows.reduce((s,r)=>s+r.impressions,0);
@@ -168,11 +104,8 @@
     const avgCvr = totalClicks ? totalConv/totalClicks*100 : 0;
     const maxRoas = Math.max(...rows.map(r=>r.roas), totalRoas);
 
-    // 이번 달 = marketing_monthly 마지막 행
     const thisMonth = monthly[monthly.length-1];
     const spendRate = budget.budget ? thisMonth.spend/budget.budget*100 : 0;
-
-    // 예산 페이싱
     const daysRate = budget.days_total ? budget.days_passed/budget.days_total*100 : 0;
     const diff = spendRate - daysRate;
     const dailyAvg = budget.days_passed ? thisMonth.spend/budget.days_passed : 0;
@@ -194,12 +127,12 @@
           <div class="sub">매출 ${won(totalRevenue)}만원 ÷ 광고비 ${won(totalSpend)}만원</div>
         </div>
         <div class="card">
-          <div class="label">CAC (고객 1명 획득 비용)</div>
+          <div class="label">CAC (설치 고객 1건 획득 비용)</div>
           <div class="value">${won(avgCpa)}원</div>
           <div class="sub">전체 채널 평균</div>
         </div>
         <div class="card">
-          <div class="label">전환수</div>
+          <div class="label">전환(상담·계약)수</div>
           <div class="value">${won(totalConv)}건</div>
           <div class="sub">CVR ${pct(avgCvr)}%</div>
         </div>
@@ -218,12 +151,12 @@
           <tbody>
             ${rows.map(r=>`
               <tr>
-                <td>${r.channel}</td>
+                <td>${r.channel}${r.isOffline?'<span class="offline-tag">오프라인</span>':''}</td>
                 <td>${won(r.spend)}</td>
                 <td>${won(r.impressions)}</td>
                 <td>${won(r.clicks)}</td>
-                <td>${pct(r.ctr)}%</td>
-                <td>${won(r.cpc)}</td>
+                <td>${r.ctr===null?'–':pct(r.ctr)+'%'}</td>
+                <td>${r.cpc===null?'–':won(r.cpc)}</td>
                 <td>${won(r.conversions)}</td>
                 <td>${won(r.cpa)}</td>
                 <td>
@@ -296,7 +229,7 @@
       const h = m.spend/maxSpend*innerH;
       const y = padT+innerH-h;
       const isLast = i===monthly.length-1;
-      return `<rect x="${x}" y="${y}" width="${bw}" height="${h}" rx="3" fill="${isLast?'var(--accent)':'#fed7aa'}"></rect>`;
+      return `<rect x="${x}" y="${y}" width="${bw}" height="${h}" rx="3" fill="${isLast?'var(--accent)':'var(--accent-light)'}"></rect>`;
     }).join('');
 
     const points = monthly.map((m,i)=>{
@@ -308,25 +241,25 @@
     const dots = monthly.map((m,i)=>{
       const x = padL + step*i + step/2;
       const y = padT + innerH - (m.roas/maxRoas*innerH);
-      return `<circle cx="${x}" cy="${y}" r="3.5" fill="#18181b"></circle>`;
+      return `<circle cx="${x}" cy="${y}" r="3.5" fill="var(--willy-navy)"></circle>`;
     }).join('');
 
     const labels = monthly.map((m,i)=>{
       const x = padL + step*i + step/2;
-      return `<text x="${x}" y="${H-8}" font-size="11" fill="var(--sub)" text-anchor="middle">${m.month}</text>`;
+      return `<text x="${x}" y="${H-8}" font-size="11" fill="var(--willy-sub)" text-anchor="middle">${m.month}</text>`;
     }).join('');
 
     return `
-    <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;font-family:inherit;">
-      <line x1="${padL}" y1="${padT+innerH}" x2="${W-padR}" y2="${padT+innerH}" stroke="var(--line)" />
+    <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;">
+      <line x1="${padL}" y1="${padT+innerH}" x2="${W-padR}" y2="${padT+innerH}" stroke="#E4E4E7" />
       ${bars}
-      <polyline points="${points}" fill="none" stroke="#18181b" stroke-width="2"></polyline>
+      <polyline points="${points}" fill="none" stroke="var(--willy-navy)" stroke-width="2"></polyline>
       ${dots}
       ${labels}
     </svg>
-    <div style="display:flex;gap:16px;font-size:11px;color:var(--sub);margin-top:6px;">
+    <div style="display:flex;gap:16px;font-size:11px;color:var(--willy-sub);margin-top:6px;">
       <span><span style="display:inline-block;width:8px;height:8px;background:var(--accent);border-radius:2px;margin-right:4px;"></span>광고비</span>
-      <span><span style="display:inline-block;width:8px;height:8px;background:#18181b;border-radius:50%;margin-right:4px;"></span>ROAS</span>
+      <span><span style="display:inline-block;width:8px;height:8px;background:var(--willy-navy);border-radius:50%;margin-right:4px;"></span>ROAS</span>
     </div>`;
   }
 
