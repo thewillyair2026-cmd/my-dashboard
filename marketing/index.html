@@ -13,36 +13,37 @@
   .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;}
   .card{background:#fff;border:1px solid #E4E4E7;border-radius:14px;padding:16px 18px;}
   .card .label{font-size:12px;color:var(--willy-sub);margin-bottom:8px;}
-  .card .value{font-size:26px;font-weight:700;letter-spacing:-0.5px;}
-  .card .value.big{font-size:30px;color:var(--accent);}
+  .card .value{font-size:24px;font-weight:700;letter-spacing:-0.5px;}
+  .card .value.big{font-size:28px;color:var(--accent);}
   .card .sub{font-size:12px;color:var(--willy-sub);margin-top:6px;}
-  .card .barbg{background:#f4f4f5;border-radius:999px;height:6px;margin-top:10px;overflow:hidden;}
-  .card .barfg{background:var(--accent);height:100%;border-radius:999px;}
   .panel{background:#fff;border:1px solid #E4E4E7;border-radius:14px;padding:18px 20px;margin-bottom:16px;}
-  .panel h2{font-size:15px;margin:0 0 14px;}
-  .grid2{display:grid;grid-template-columns:1.3fr 1fr;gap:16px;}
+  .panel h2{font-size:15px;margin:0 0 4px;}
+  .panel .panel-note{font-size:11.5px;color:var(--willy-sub);margin:0 0 14px;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  .chan-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f4f4f5;}
+  .chan-row:last-child{border-bottom:none;}
+  .chan-row .name{width:120px;font-size:12.5px;flex-shrink:0;}
+  .chan-bar-bg{flex:1;background:#f4f4f5;border-radius:999px;height:9px;overflow:hidden;}
+  .chan-bar-fg{height:100%;border-radius:999px;}
+  .chan-bar-fg.b2b{background:var(--willy-navy);}
+  .chan-bar-fg.b2c{background:var(--accent);}
+  .chan-row .rate{width:44px;text-align:right;font-size:12.5px;font-weight:700;flex-shrink:0;}
+  .chan-row .cnt{width:70px;text-align:right;font-size:11px;color:var(--willy-sub);flex-shrink:0;}
   table{width:100%;border-collapse:collapse;font-size:13px;}
   th,td{text-align:right;padding:8px 6px;white-space:nowrap;}
   th:first-child,td:first-child{text-align:left;}
   thead th{color:var(--willy-sub);font-weight:500;border-bottom:1px solid #E4E4E7;font-size:12px;}
   tbody td{border-bottom:1px solid #f4f4f5;}
   tbody tr:last-child td{border-bottom:none;}
-  tr.total td{font-weight:700;border-top:2px solid #E4E4E7;border-bottom:none;padding-top:10px;}
-  .offline-tag{font-size:10px;background:#f4f4f5;color:var(--willy-sub);padding:1px 6px;border-radius:999px;margin-left:6px;}
-  .roas-cell{display:flex;align-items:center;justify-content:flex-end;gap:6px;}
-  .roas-bar-bg{width:50px;height:6px;background:#f4f4f5;border-radius:999px;overflow:hidden;}
-  .roas-bar-fg{height:100%;background:var(--accent);border-radius:999px;}
   .table-scroll{overflow-x:auto;}
-  .pacing-row{margin-bottom:10px;}
-  .pacing-row .plabel{display:flex;justify-content:space-between;font-size:12px;color:var(--willy-sub);margin-bottom:4px;}
-  .pacing-bg{background:#f4f4f5;border-radius:999px;height:14px;overflow:hidden;}
-  .pacing-fg{height:100%;border-radius:999px;}
-  .pacing-fg.budget{background:var(--accent);}
-  .pacing-fg.days{background:#a1a1aa;}
-  .pacing-msg{margin:14px 0;padding:12px 14px;background:var(--accent-bg);border-radius:10px;font-size:13px;line-height:1.5;}
-  .pacing-msg b{color:var(--accent);}
-  .pacing-foot{display:flex;justify-content:space-between;font-size:12px;color:var(--willy-sub);border-top:1px solid #E4E4E7;padding-top:10px;margin-top:14px;}
-  .pacing-foot div b{display:block;font-size:15px;color:var(--willy-text);font-weight:700;margin-top:2px;}
+  .fee-note{margin-top:12px;padding:10px 14px;background:var(--accent-bg);border-radius:10px;font-size:12px;color:var(--willy-sub);line-height:1.5;}
+  .fee-note b{color:var(--accent);}
+  .zero-tag{color:#dc2626;font-weight:700;}
+  .insight-list{display:flex;flex-direction:column;gap:10px;}
+  .insight-item{display:flex;gap:12px;padding:12px 14px;background:var(--accent-bg);border-radius:10px;}
+  .insight-item .num{flex-shrink:0;width:24px;height:24px;border-radius:50%;background:var(--accent);color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;}
+  .insight-item .txt strong{display:block;font-size:13px;margin-bottom:2px;}
+  .insight-item .txt span{font-size:12px;color:var(--willy-sub);}
   .loading,.err{padding:40px;text-align:center;color:var(--willy-sub);font-size:13px;}
   .err{color:#dc2626;}
   @media (max-width:860px){
@@ -59,211 +60,151 @@
   const SUPABASE_URL = 'https://gsqurjwbdkenmjwspucq.supabase.co';
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdzcXVyandiZGtlbm1qd3NwdWNxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY1NTY3MjIsImV4cCI6MjEwMjEzMjcyMn0.VWwpg2uLfFWquknfnKjsj6a_-AfTdQJS8LVw9dSQ0xo';
 
-  WillyShell.mount({active:'marketing', title:'마케팅 대시보드', subtitle:'답하는 질문 — 어느 채널에 더 쓰고 어디를 끊나? 설치 고객 한 명 데려오는 데 얼마 드나?'});
+  WillyShell.mount({active:'marketing', title:'마케팅 대시보드', subtitle:'답하는 질문 — 어느 채널이 진짜 효율이 좋나? B2B/B2C 채널 성격이 왜 다른가?'});
 
   const { createClient } = supabase;
   const won = n => Math.round(n).toLocaleString('ko-KR');
   const pct = n => (Math.round(n*10)/10).toLocaleString('ko-KR');
+  const eok = n => {
+    const sign = n<0?'-':'';
+    n = Math.abs(Math.round(n));
+    const eokPart = Math.floor(n/100000000);
+    const manPart = Math.round((n%100000000)/10000);
+    return sign + (eokPart>0?`${eokPart}억 `:'') + `${manPart.toLocaleString('ko-KR')}만원`;
+  };
 
   async function main(){
     const content = document.getElementById('content');
     try{
       const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-      const [{data:channel,error:e1}, {data:monthly,error:e2}, {data:budget,error:e3}] = await Promise.all([
+      const [{data:channel,error:e1},{data:naver,error:e2}] = await Promise.all([
         db.from('marketing_channel').select('*'),
-        db.from('marketing_monthly').select('*').order('sort_order',{ascending:true}),
-        db.from('marketing_budget').select('*')
+        db.from('marketing_naver_ads').select('*')
       ]);
-      if(e1||e2||e3) throw (e1||e2||e3);
-      if(!channel?.length || !monthly?.length || !budget?.length) throw new Error('데이터가 비어 있습니다.');
-      let selectedMonth = monthly[monthly.length-1].month;
-      WillyShell.setMonthFilter(monthly.map(m=>m.month), selectedMonth, (m)=>{ selectedMonth = m; render(channel, monthly, budget[0], selectedMonth); });
-      render(channel, monthly, budget[0], selectedMonth);
+      if(e1||e2) throw (e1||e2);
+      if(!channel?.length || !naver?.length) throw new Error('데이터가 비어 있습니다.');
+      render(channel, naver);
     }catch(err){
       content.innerHTML = `<div class="err">데이터를 불러오지 못했습니다.<br>${(err && err.message) || err}</div>`;
       console.error(err);
     }
   }
 
-  function render(channel, monthly, budget, selectedMonth){
-    const rows = channel.map(c=>{
-      const isOffline = c.clicks === 0;
-      const ctr = (!isOffline && c.impressions) ? c.clicks/c.impressions*100 : null;
-      const cpc = (!isOffline && c.clicks) ? c.spend*10000/c.clicks : null;
-      const cpa = c.conversions ? c.spend*10000/c.conversions : 0;
-      const roas = c.spend ? c.revenue/c.spend*100 : 0;
-      return {...c, isOffline, ctr, cpc, cpa, roas};
-    });
-    const totalSpend = rows.reduce((s,r)=>s+r.spend,0);
-    const totalImp = rows.reduce((s,r)=>s+r.impressions,0);
-    const totalClicks = rows.reduce((s,r)=>s+r.clicks,0);
-    const totalConv = rows.reduce((s,r)=>s+r.conversions,0);
-    const totalRevenue = rows.reduce((s,r)=>s+r.revenue,0);
-    const avgCtr = totalImp ? totalClicks/totalImp*100 : 0;
-    const avgCpc = totalClicks ? totalSpend*10000/totalClicks : 0;
-    const avgCpa = totalConv ? totalSpend*10000/totalConv : 0;
-    const totalRoas = totalSpend ? totalRevenue/totalSpend*100 : 0;
-    const avgCvr = totalClicks ? totalConv/totalClicks*100 : 0;
-    const maxRoas = Math.max(...rows.map(r=>r.roas), totalRoas);
+  function render(channel, naver){
+    const rows = channel.map(c=>({...c, rate: c.quotes ? c.contracts/c.quotes*100 : 0}));
+    const b2b = rows.filter(r=>r.is_b2b).sort((a,b)=>b.rate-a.rate);
+    const b2c = rows.filter(r=>!r.is_b2b).sort((a,b)=>b.rate-a.rate);
 
-    const mIdx = monthly.findIndex(m=>m.month===selectedMonth);
-    const thisMonth = monthly[mIdx>=0?mIdx:monthly.length-1];
-    const spendRate = budget.budget ? thisMonth.spend/budget.budget*100 : 0;
-    const daysRate = budget.days_total ? budget.days_passed/budget.days_total*100 : 0;
-    const diff = spendRate - daysRate;
-    const dailyAvg = budget.days_passed ? thisMonth.spend/budget.days_passed : 0;
-    const remain = budget.budget - thisMonth.spend;
-    const projectedDay = dailyAvg>0 ? Math.round(budget.budget/dailyAvg) : null;
+    const totalQ = rows.reduce((s,r)=>s+r.quotes,0);
+    const totalC = rows.reduce((s,r)=>s+r.contracts,0);
+    const totalRev = rows.reduce((s,r)=>s+r.revenue,0);
+    const totalRate = totalQ ? totalC/totalQ*100 : 0;
+
+    const b2bQ = b2b.reduce((s,r)=>s+r.quotes,0), b2bC = b2b.reduce((s,r)=>s+r.contracts,0);
+    const b2cQ = b2c.reduce((s,r)=>s+r.quotes,0), b2cC = b2c.reduce((s,r)=>s+r.contracts,0);
+    const b2bRate = b2bQ ? b2bC/b2bQ*100 : 0;
+    const b2cRate = b2cQ ? b2cC/b2cQ*100 : 0;
+
+    const topChannel = [...rows].sort((a,b)=>b.quotes-a.quotes)[0];
+
+    const naverSpendTotal = naver.reduce((s,n)=>s+n.spend,0);
+    const naverFee = naverSpendTotal * 0.1;
+    const naverMonth = naver[0]?.month || '';
 
     const content = document.getElementById('content');
     content.innerHTML = `
       <div class="cards">
         <div class="card">
-          <div class="label">이번 달 광고비</div>
-          <div class="value big">${won(thisMonth.spend)}만원</div>
-          <div class="barbg"><div class="barfg" style="width:${Math.min(spendRate,100)}%"></div></div>
-          <div class="sub">예산 ${won(budget.budget)}만원 중 ${pct(spendRate)}% 소진</div>
+          <div class="label">전체 견적→계약 전환율</div>
+          <div class="value big">${pct(totalRate)}%</div>
+          <div class="sub">견적 ${won(totalQ)}건 · 계약 ${won(totalC)}건</div>
         </div>
         <div class="card">
-          <div class="label">통합 ROAS</div>
-          <div class="value">${pct(totalRoas)}%</div>
-          <div class="sub">매출 ${won(totalRevenue)}만원 ÷ 광고비 ${won(totalSpend)}만원</div>
+          <div class="label">총 계약금액</div>
+          <div class="value">${eok(totalRev)}</div>
+          <div class="sub">전체 채널 합계</div>
         </div>
         <div class="card">
-          <div class="label">CAC (설치 고객 1건 획득 비용)</div>
-          <div class="value">${won(avgCpa)}원</div>
-          <div class="sub">전체 채널 평균</div>
+          <div class="label">B2B vs B2C 전환율</div>
+          <div class="value">${pct(b2bRate)}% <span style="font-size:14px;color:var(--willy-sub);">vs</span> ${pct(b2cRate)}%</div>
+          <div class="sub">인테리어·부동산 제휴가 ${(b2bRate/b2cRate).toFixed(1)}배 높음</div>
         </div>
         <div class="card">
-          <div class="label">전환(상담·계약)수</div>
-          <div class="value">${won(totalConv)}건</div>
-          <div class="sub">CVR ${pct(avgCvr)}%</div>
-        </div>
-      </div>
-
-      <div class="panel">
-        <h2>채널별 성과</h2>
-        <div class="table-scroll">
-        <table>
-          <thead>
-            <tr>
-              <th>채널</th><th>광고비(만원)</th><th>노출</th><th>클릭</th><th>CTR</th>
-              <th>CPC(원)</th><th>전환</th><th>CPA(원)</th><th>ROAS</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${rows.map(r=>`
-              <tr>
-                <td>${r.channel}${r.isOffline?'<span class="offline-tag">오프라인</span>':''}</td>
-                <td>${won(r.spend)}</td>
-                <td>${won(r.impressions)}</td>
-                <td>${won(r.clicks)}</td>
-                <td>${r.ctr===null?'–':pct(r.ctr)+'%'}</td>
-                <td>${r.cpc===null?'–':won(r.cpc)}</td>
-                <td>${won(r.conversions)}</td>
-                <td>${won(r.cpa)}</td>
-                <td>
-                  <div class="roas-cell">
-                    <span>${pct(r.roas)}%</span>
-                    <div class="roas-bar-bg"><div class="roas-bar-fg" style="width:${Math.min(r.roas/maxRoas*100,100)}%"></div></div>
-                  </div>
-                </td>
-              </tr>`).join('')}
-            <tr class="total">
-              <td>합계 / 평균</td>
-              <td>${won(totalSpend)}</td>
-              <td>${won(totalImp)}</td>
-              <td>${won(totalClicks)}</td>
-              <td>${pct(avgCtr)}%</td>
-              <td>${won(avgCpc)}</td>
-              <td>${won(totalConv)}</td>
-              <td>${won(avgCpa)}</td>
-              <td>
-                <div class="roas-cell">
-                  <span>${pct(totalRoas)}%</span>
-                  <div class="roas-bar-bg"><div class="roas-bar-fg" style="width:${Math.min(totalRoas/maxRoas*100,100)}%"></div></div>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+          <div class="label">최다 유입 채널</div>
+          <div class="value">${topChannel.channel}</div>
+          <div class="sub">견적 ${won(topChannel.quotes)}건 (전체 ${pct(topChannel.quotes/totalQ*100)}%)</div>
         </div>
       </div>
 
       <div class="grid2">
         <div class="panel">
-          <h2>월별 광고비 · ROAS 추이</h2>
-          ${comboChart(monthly, thisMonth.month)}
+          <h2>B2C 채널 전환율</h2>
+          <p class="panel-note">일반 소비자 유입 채널 · 전환율 높은 순</p>
+          ${channelBars(b2c, 'b2c')}
         </div>
         <div class="panel">
-          <h2>예산 소진 페이싱</h2>
-          <div class="pacing-row">
-            <div class="plabel"><span>예산 소진</span><span>${pct(spendRate)}%</span></div>
-            <div class="pacing-bg"><div class="pacing-fg budget" style="width:${Math.min(spendRate,100)}%"></div></div>
+          <h2>B2B 채널 전환율</h2>
+          <p class="panel-note">인테리어·부동산 제휴 채널 · 물량은 적지만 전환율 높음</p>
+          ${channelBars(b2b, 'b2b')}
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>네이버 유료광고 (${naverMonth})</h2>
+        <p class="panel-note">파워링크·쇼핑검색은 블로그/스마트스토어로 랜딩되는 구조라 위 채널 표와는 분리 집계됩니다</p>
+        <div class="table-scroll">
+        <table>
+          <thead><tr><th>상품</th><th>노출</th><th>클릭</th><th>광고비</th><th>전환</th><th>전환매출</th></tr></thead>
+          <tbody>
+            ${naver.map(n=>`
+              <tr>
+                <td>${n.product}</td>
+                <td>${won(n.impressions)}</td>
+                <td>${won(n.clicks)}</td>
+                <td>${won(n.spend)}원</td>
+                <td>${n.conversions===0?`<span class="zero-tag">0건</span>`:won(n.conversions)+'건'}</td>
+                <td>${won(n.conversion_revenue)}원</td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+        </div>
+        <div class="fee-note">
+          광고비 합계 <b>${won(naverSpendTotal)}원</b> 중 대행사 수수료 10% = <b>${won(naverFee)}원</b>이 별도로 나갑니다.
+          파워링크 전환 0건은 광고가 안 통해서가 아니라, 블로그로 랜딩되는 구조상 전환추적 자체가 불가능하기 때문입니다.
+          쇼핑검색 전환 21건은 신규 고객이 아니라 <b>기존 계약자가 계약금을 스마트스토어로 결제한 것</b>이라 실제 신규 유입 효과는 거의 없습니다.
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>이번 주 체크포인트</h2>
+        <div class="insight-list">
+          <div class="insight-item">
+            <div class="num">1</div>
+            <div class="txt"><strong>인테리어·부동산 채널 확대 검토</strong><span>전환율이 B2C 평균의 ${(b2bRate/b2cRate).toFixed(1)}배 — 물량 대비 효율 최고</span></div>
           </div>
-          <div class="pacing-row">
-            <div class="plabel"><span>기간 경과</span><span>${pct(daysRate)}%</span></div>
-            <div class="pacing-bg"><div class="pacing-fg days" style="width:${Math.min(daysRate,100)}%"></div></div>
+          <div class="insight-item">
+            <div class="num">2</div>
+            <div class="txt"><strong>네이버 블로그 하락세 확인 필요</strong><span>4월 104건 → 7월 50건대로 감소, 다른 채널은 안 줄었음</span></div>
           </div>
-          <div class="pacing-msg">
-            경과보다 <b>${diff>=0?'+':''}${pct(diff)}%p</b> ${diff>=0?'빠르게':'느리게'} 소진 중입니다.
-            ${projectedDay ? `이 속도면 <b>${projectedDay}일째</b>에 예산이 소진됩니다.` : ''}
-          </div>
-          <div class="pacing-foot">
-            <div>집행<b>${won(thisMonth.spend)}만원</b></div>
-            <div>잔여<b>${won(remain)}만원</b></div>
-            <div>일 평균<b>${won(dailyAvg)}만원</b></div>
+          <div class="insight-item">
+            <div class="num">3</div>
+            <div class="txt"><strong>쇼핑검색 광고 노출 위치 재검토</strong><span>월 ${won(naver.find(n=>n.product==='쇼핑검색')?.spend||0)}원이 신규 유입 없이 결제 페이지 광고로 소진 중</span></div>
           </div>
         </div>
       </div>
     `;
   }
 
-  function comboChart(monthly, selectedMonth){
-    const W=520,H=240,padL=44,padR=16,padT=16,padB=30;
-    const innerW=W-padL-padR, innerH=H-padT-padB;
-    const maxSpend = Math.max(...monthly.map(m=>m.spend))*1.15;
-    const maxRoas = Math.max(...monthly.map(m=>m.roas))*1.25;
-    const bw = innerW/monthly.length*0.5;
-    const step = innerW/monthly.length;
-
-    const bars = monthly.map((m,i)=>{
-      const x = padL + step*i + (step-bw)/2;
-      const h = m.spend/maxSpend*innerH;
-      const y = padT+innerH-h;
-      const isSelected = m.month===selectedMonth;
-      return `<rect x="${x}" y="${y}" width="${bw}" height="${h}" rx="3" fill="${isSelected?'var(--accent)':'var(--accent-light)'}"></rect>`;
-    }).join('');
-
-    const points = monthly.map((m,i)=>{
-      const x = padL + step*i + step/2;
-      const y = padT + innerH - (m.roas/maxRoas*innerH);
-      return `${x},${y}`;
-    }).join(' ');
-
-    const dots = monthly.map((m,i)=>{
-      const x = padL + step*i + step/2;
-      const y = padT + innerH - (m.roas/maxRoas*innerH);
-      return `<circle cx="${x}" cy="${y}" r="3.5" fill="var(--willy-navy)"></circle>`;
-    }).join('');
-
-    const labels = monthly.map((m,i)=>{
-      const x = padL + step*i + step/2;
-      return `<text x="${x}" y="${H-8}" font-size="11" fill="var(--willy-sub)" text-anchor="middle">${m.month}</text>`;
-    }).join('');
-
-    return `
-    <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;">
-      <line x1="${padL}" y1="${padT+innerH}" x2="${W-padR}" y2="${padT+innerH}" stroke="#E4E4E7" />
-      ${bars}
-      <polyline points="${points}" fill="none" stroke="var(--willy-navy)" stroke-width="2"></polyline>
-      ${dots}
-      ${labels}
-    </svg>
-    <div style="display:flex;gap:16px;font-size:11px;color:var(--willy-sub);margin-top:6px;">
-      <span><span style="display:inline-block;width:8px;height:8px;background:var(--accent);border-radius:2px;margin-right:4px;"></span>광고비</span>
-      <span><span style="display:inline-block;width:8px;height:8px;background:var(--willy-navy);border-radius:50%;margin-right:4px;"></span>ROAS</span>
-    </div>`;
+  function channelBars(items, type){
+    if(!items.length) return '<div style="font-size:12px;color:var(--willy-sub);">데이터 없음</div>';
+    const max = Math.max(...items.map(i=>i.rate));
+    return items.map(i=>`
+      <div class="chan-row">
+        <div class="name">${i.channel}</div>
+        <div class="chan-bar-bg"><div class="chan-bar-fg ${type}" style="width:${max?i.rate/max*100:0}%"></div></div>
+        <div class="rate">${pct(i.rate)}%</div>
+        <div class="cnt">${won(i.contracts)}/${won(i.quotes)}건</div>
+      </div>`).join('');
   }
 
   main();
