@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>담당자별 상세 실적 · WILLY</title>
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
+<link rel="stylesheet" href="../shared/theme.css" />
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../shared/shell.js"></script>
+<style>
+  :root{ --accent:#1338BE; --accent-light:#DFEAFF; }
+  .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;}
+  .card .barbg{background:#f4f4f5;border-radius:999px;height:6px;margin-top:10px;overflow:hidden;}
+  .card .barfg{background:var(--accent);height:100%;border-radius:999px;}
+  .trend-legend{display:flex;gap:16px;font-size:11px;color:var(--willy-sub);margin-top:8px;}
+  .trend-legend span{display:inline-flex;align-items:center;gap:5px;}
+  .trend-legend i{display:inline-block;width:12px;height:2px;}
+  .card{background:#fff;border:1px solid #E4E4E7;border-radius:14px;padding:16px 18px;}
+  .card .label{font-size:12px;color:var(--willy-sub);margin-bottom:8px;}
+  .card .value{font-size:24px;font-weight:700;letter-spacing:-0.5px;}
+  .card .value.big{font-size:28px;color:var(--accent);}
+  .card .sub{font-size:12px;color:var(--willy-sub);margin-top:6px;}
+  .panel{background:#fff;border:1px solid #E4E4E7;border-radius:14px;padding:18px 20px;margin-bottom:16px;}
+  .panel h2{font-size:15px;margin:0 0 4px;}
+  .panel .panel-note{font-size:11.5px;color:var(--willy-sub);margin:0 0 14px;}
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  th,td{text-align:right;padding:8px 6px;white-space:nowrap;}
+  th:first-child,td:first-child{text-align:left;}
+  thead th{color:var(--willy-sub);font-weight:500;border-bottom:1px solid #E4E4E7;font-size:12px;}
+  tbody td{border-bottom:1px solid #f4f4f5;}
+  tbody tr:last-child td{border-bottom:none;}
+  .table-scroll{overflow-x:auto;}
+  .bar-cell{display:flex;align-items:center;gap:8px;justify-content:flex-end;}
+  .bar-track{width:60px;height:6px;border-radius:4px;background:#f4f4f5;overflow:hidden;flex-shrink:0;}
+  .bar-fill{height:100%;border-radius:4px;background:var(--accent);}
+  .loading,.err{padding:40px;text-align:center;color:var(--willy-sub);font-size:13px;}
+  .err{color:#dc2626;}
+  .confidential{font-size:11px;color:#D81A3C;background:#FFE1E8;display:inline-block;padding:4px 10px;border-radius:999px;margin-bottom:14px;}
+  .rep-menu{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+  .rep-card{display:block;background:#fff;border:1px solid #E4E4E7;border-radius:14px;padding:20px;text-decoration:none;color:var(--willy-text);font-weight:700;font-size:14px;text-align:center;transition:box-shadow .15s ease;}
+  .rep-card:hover{box-shadow:0 8px 20px rgba(20,27,60,.10);}
+  .back-link{display:inline-block;margin-bottom:16px;font-size:12.5px;font-weight:600;color:var(--accent);text-decoration:none;}
+  .back-link:hover{text-decoration:underline;}
+  @media (max-width:860px){ .cards{grid-template-columns:repeat(2,1fr);} .rep-menu{grid-template-columns:repeat(2,1fr);} }
+</style>
+</head>
+<body>
+<div id="shell-root"></div>
+<div id="content"><div class="loading">불러오는 중...</div></div>
+
+<script>
+  WillyShell.mount({active:'sales', title:'담당자별 상세 실적', subtitle:'개인 면담용 · 본인 실적만 보여주세요'});
+
+  const won = n => Math.round(n).toLocaleString('ko-KR');
+  const pct = n => (Math.round(n*10)/10).toLocaleString('ko-KR');
+  const eok = n => {
+    const sign = n<0?'-':'';
+    n = Math.abs(Math.round(n));
+    const eokPart = Math.floor(n/100000000);
+    const manPart = Math.round((n%100000000)/10000);
+    return sign + (eokPart>0?`${eokPart}억 `:'') + `${manPart.toLocaleString('ko-KR')}만원`;
+  };
+  const db = () => WillyShell.getAuthClient();
+
+  const REPS = ['신제호 과장','오형민 대리','민대기 대리','이지은 대리','이유진 사원','정현수 대표'];
+  const REP_TARGET_PER_MONTH = 150000000; // 담당자 월 목표: 1억5천만원
+
+  function repFromUrl(){
+    const r = new URLSearchParams(location.search).get('rep');
+    return REPS.includes(r) ? r : null;
+  }
+
+  async function main(){
+    const content = document.getElementById('content');
+    const rep = repFromUrl();
+    if(!rep){
+      content.innerHTML = `
+        <p style="font-size:12.5px;color:var(--willy-sub);margin:0 0 16px;">담당자를 선택하면 그 사람만의 전용 페이지로 이동합니다 (URL을 그대로 저장/공유해서 다음에 바로 열 수 있어요).</p>
+        <div class="rep-menu">
+          ${REPS.map(r=>`<a class="rep-card" href="rep.html?rep=${encodeURIComponent(r)}">${r}</a>`).join('')}
+        </div>
+      `;
+      return;
+    }
+    try{
+      const { data, error } = await db().from('sales_rep_channel_monthly').select('*').eq('rep', rep);
+      if(error) throw error;
+      if(!data?.length) throw new Error('해당 담당자의 데이터가 비어 있습니다.');
+      render(data, rep);
+    }catch(err){
+      content.innerHTML = `<div class="err">데이터를 불러오지 못했습니다.<br>${(err && err.message) || err}</div>`;
+      console.error(err);
+    }
+  }
+
+  function periodLabel(period){
+    if(period==='ALL') return '전체기간';
+    if(period.indexOf('YEAR:')===0) return period.slice(5)+'년 전체';
+    return period;
+  }
+
+  function render(all, rep){
+    let period = 'ALL';
+
+    function renderBody(){
+      const repRows = all;
+      const monthly = {};
+      repRows.forEach(r=>{
+        if(!monthly[r.ym]) monthly[r.ym] = {ym:r.ym, quotes:0, contracts:0, revenue:0};
+        monthly[r.ym].quotes += r.quotes;
+        monthly[r.ym].contracts += r.contracts;
+        monthly[r.ym].revenue += r.revenue;
+      });
+      const monthlyList = Object.values(monthly).sort((a,b)=>a.ym.localeCompare(b.ym));
+      const periods = WillyShell.buildPeriodOptions(monthlyList);
+
+      const periodRows = WillyShell.filterByPeriod(monthlyList, period);
+      const periodQ = periodRows.reduce((s,m)=>s+m.quotes,0);
+      const periodC = periodRows.reduce((s,m)=>s+m.contracts,0);
+      const periodRev = periodRows.reduce((s,m)=>s+m.revenue,0);
+      const rate = periodQ ? periodC/periodQ*100 : 0;
+      const periodTarget = REP_TARGET_PER_MONTH * Math.max(periodRows.length,1);
+      const achieveRate = periodTarget ? periodRev/periodTarget*100 : 0;
+
+      const chanAgg = {};
+      repRows.filter(r=>{
+        if(period==='ALL') return true;
+        if(period.indexOf('YEAR:')===0) return r.ym.startsWith(period.slice(5)+'.');
+        return r.ym===period;
+      }).forEach(r=>{
+        if(!chanAgg[r.channel]) chanAgg[r.channel] = {channel:r.channel, quotes:0, contracts:0, revenue:0};
+        chanAgg[r.channel].quotes += r.quotes;
+        chanAgg[r.channel].contracts += r.contracts;
+        chanAgg[r.channel].revenue += r.revenue;
+      });
+      const chanList = Object.values(chanAgg).map(c=>({...c, rate: c.quotes ? c.contracts/c.quotes*100 : 0})).sort((a,b)=>b.revenue-a.revenue);
+      const topChannel = chanList[0];
+      const maxRev = Math.max(...chanList.map(c=>c.revenue), 1);
+
+      const label = periodLabel(period);
+      const content = document.getElementById('content');
+      content.innerHTML = `
+        <a class="back-link" href="rep.html">← 담당자 목록으로</a>
+        <div class="confidential">개인정보 — ${rep} 본인 면담 시에만 화면 공유하세요</div>
+        <h1 style="font-size:18px;margin:0 0 16px;">${rep}</h1>
+
+        <div class="cards">
+          <div class="card">
+            <div class="label">${label} 계약금액</div>
+            <div class="value big">${eok(periodRev)}</div>
+            <div class="sub">견적 ${won(periodQ)}건 · 계약 ${won(periodC)}건</div>
+          </div>
+          <div class="card">
+            <div class="label">목표 대비 달성률</div>
+            <div class="value">${pct(achieveRate)}%</div>
+            <div class="barbg"><div class="barfg" style="width:${Math.min(achieveRate,100)}%"></div></div>
+            <div class="sub">목표 ${eok(periodTarget)} (월 1억5천만원 기준)</div>
+          </div>
+          <div class="card">
+            <div class="label">${label} 견적→계약 전환율</div>
+            <div class="value">${pct(rate)}%</div>
+          </div>
+          <div class="card">
+            <div class="label">최다 유입 채널</div>
+            <div class="value">${topChannel?topChannel.channel:'-'}</div>
+            <div class="sub">${topChannel?`${eok(topChannel.revenue)}`:'데이터 없음'}</div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h2>월별 계약금액 추이</h2>
+          <p class="panel-note">${rep} · 계약일 기준</p>
+          ${trendChart(monthlyList, period)}
+        </div>
+
+        <div class="panel">
+          <h2>채널별 실적</h2>
+          <p class="panel-note">${label} · ${rep} 담당 건 기준</p>
+          <div class="table-scroll">
+          <table>
+            <thead><tr><th>채널</th><th>견적</th><th>계약</th><th>전환율</th><th>계약금액</th></tr></thead>
+            <tbody>
+              ${chanList.map(c=>`
+                <tr>
+                  <td>${c.channel}</td>
+                  <td>${won(c.quotes)}</td>
+                  <td>${won(c.contracts)}</td>
+                  <td>${pct(c.rate)}%</td>
+                  <td><div class="bar-cell"><div class="bar-track"><div class="bar-fill" style="width:${c.revenue/maxRev*100}%"></div></div>${eok(c.revenue)}</div></td>
+                </tr>`).join('') || '<tr><td colspan="5" style="color:var(--willy-sub);">해당 기간 실적이 없습니다.</td></tr>'}
+            </tbody>
+          </table>
+          </div>
+        </div>
+      `;
+
+      WillyShell.setPeriodFilter(periods, period, (p)=>{ period = p; renderBody(); });
+    }
+
+    renderBody();
+  }
+
+  function movingAvg3(monthly){
+    return monthly.map((m,i)=>{
+      const window = monthly.slice(Math.max(0,i-2), i+1);
+      const avg = window.reduce((s,w)=>s+w.revenue,0)/window.length;
+      return avg;
+    });
+  }
+
+  function trendChart(monthly, period){
+    if(!monthly.length) return '<div style="font-size:12px;color:var(--willy-sub);">데이터가 없습니다.</div>';
+    const W=760,H=220,padL=48,padR=16,padT=16,padB=30;
+    const innerW=W-padL-padR, innerH=H-padT-padB;
+    const avgSeries = movingAvg3(monthly);
+    const maxV = Math.max(...monthly.map(m=>m.revenue), ...avgSeries, 1)*1.1;
+    const step = innerW/monthly.length;
+    const bw = step*0.5;
+    const isSelected = ym => period==='ALL' || (period.indexOf('YEAR:')===0 && ym.startsWith(period.slice(5)+'.')) || period===ym;
+    const bars = monthly.map((m,i)=>{
+      const x = padL+step*i+(step-bw)/2;
+      const h = m.revenue/maxV*innerH;
+      const y = padT+innerH-h;
+      return `<rect x="${x}" y="${y}" width="${bw}" height="${h}" rx="3" fill="${isSelected(m.ym)?'var(--accent)':'var(--accent-light)'}"></rect>`;
+    }).join('');
+    const avgPoints = avgSeries.map((v,i)=>{
+      const x = padL+step*i+step/2;
+      const y = padT+innerH-(v/maxV*innerH);
+      return `${x},${y}`;
+    }).join(' ');
+    const labels = monthly.map((m,i)=>{
+      const x = padL+step*i+step/2;
+      return `<text x="${x}" y="${H-8}" text-anchor="middle" font-size="9.5" fill="var(--willy-sub)">${m.ym.slice(2)}</text>`;
+    }).join('');
+    return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;">
+      <line x1="${padL}" y1="${padT+innerH}" x2="${W-padR}" y2="${padT+innerH}" stroke="#E4E4E7" />
+      ${bars}
+      <polyline points="${avgPoints}" fill="none" stroke="#D81A3C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+      ${labels}
+    </svg>
+    <div class="trend-legend">
+      <span><i style="background:var(--accent)"></i>월별 계약금액</span>
+      <span><i style="background:#D81A3C"></i>3개월 이동평균</span>
+    </div>`;
+  }
+
+  WillyShell.requireRole(['owner','marketing'], main);
+</script>
+</body>
+</html>

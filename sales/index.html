@@ -43,6 +43,8 @@
   .insight-item .txt strong{display:block;font-size:13px;margin-bottom:2px;}
   .insight-item .txt span{font-size:12px;color:var(--willy-sub);}
   .table-scroll{overflow-x:auto;}
+  .manage-link{display:inline-block;margin-bottom:16px;font-size:12.5px;font-weight:600;color:var(--accent);text-decoration:none;}
+  .manage-link:hover{text-decoration:underline;}
   .loading,.err{padding:40px;text-align:center;color:var(--willy-sub);font-size:13px;}
   .err{color:#dc2626;}
   @media (max-width:860px){
@@ -161,6 +163,8 @@
 
     const content = document.getElementById('content');
     content.innerHTML = `
+      <a class="manage-link" href="rep.html">→ 담당자별 상세 실적 (면담용)</a>
+
       <div class="cards">
         <div class="card">
           <div class="label">${label} 계약금액</div>
