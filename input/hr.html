@@ -49,9 +49,11 @@
   const db = () => WillyShell.getAuthClient();
   const thisYm = () => { const d=new Date(); return d.getFullYear()+'.'+String(d.getMonth()+1).padStart(2,'0'); };
 
+  const WORK_HOURS_PER_DAY = 8;
   const LEAVE_TYPES = {
     '연차': 1,
-    '반차·시차': 0.5,
+    '반차': 0.5,
+    '시차': null, // 시간 직접 입력 → 일수는 시간/8로 자동 환산
     '월차': 1
   };
 
@@ -144,10 +146,12 @@
             <select id="lv-type">${Object.keys(LEAVE_TYPES).map(t=>`<option value="${t}">${t}</option>`).join('')}</select>
           </div>
           <div><label>연월 (YYYY.MM)</label><input id="lv-ym" type="text" value="${thisYm()}" /></div>
+          <div id="lv-hours-wrap" style="display:none;"><label>시차 시간(시간)</label><input id="lv-hours" type="number" step="0.5" /></div>
           <div><label>사용일수</label><input id="lv-days" type="number" step="0.5" value="1" /></div>
           <div><label>메모(선택)</label><input id="lv-note" type="text" /></div>
           <div><button class="btn" id="save-leave-btn">기록</button></div>
         </div>
+        <p class="panel-note" style="margin:-8px 0 14px;">시차는 시간을 입력하면 일수(시간÷8)가 자동으로 채워져요 — 필요하면 사용일수를 직접 수정하셔도 됩니다.</p>
         <div class="table-scroll">
         <table>
           <thead><tr><th>직원</th><th>연월</th><th>구분</th><th>사용일수</th><th>메모</th></tr></thead>
@@ -164,7 +168,18 @@
     document.getElementById('cancel-edit-btn').addEventListener('click', ()=>{ editingId=null; resetEmpForm(); });
     document.getElementById('save-leave-btn').addEventListener('click', ()=>saveLeave(leaveUsage));
     document.getElementById('lv-type').addEventListener('change', (e)=>{
-      document.getElementById('lv-days').value = LEAVE_TYPES[e.target.value];
+      const isHourly = e.target.value === '시차';
+      document.getElementById('lv-hours-wrap').style.display = isHourly ? '' : 'none';
+      if(isHourly){
+        document.getElementById('lv-hours').value = '';
+        document.getElementById('lv-days').value = '';
+      } else {
+        document.getElementById('lv-days').value = LEAVE_TYPES[e.target.value];
+      }
+    });
+    document.getElementById('lv-hours').addEventListener('input', (e)=>{
+      const hours = Number(e.target.value);
+      document.getElementById('lv-days').value = hours ? Math.round((hours/WORK_HOURS_PER_DAY)*1000)/1000 : '';
     });
   }
 
@@ -195,7 +210,7 @@
     const nameOf = id => (employees.find(e=>e.id===id)||{}).name || '(삭제됨)';
     const sorted = [...leaveUsage].sort((a,b)=> b.ym.localeCompare(a.ym));
     document.getElementById('leave-body').innerHTML = sorted.slice(0,30).map(l=>`
-      <tr><td>${nameOf(l.employee_id)}</td><td>${l.ym}</td><td>${l.leave_type||'연차'}</td><td>${l.days_used}일</td><td>${l.note||''}</td></tr>
+      <tr><td>${nameOf(l.employee_id)}</td><td>${l.ym}</td><td>${l.leave_type||'연차'}${l.hours?` (${l.hours}시간)`:''}</td><td>${l.days_used}일</td><td>${l.note||''}</td></tr>
     `).join('') || '<tr><td colspan="5" style="color:var(--willy-sub);">기록이 없습니다.</td></tr>';
   }
 
@@ -255,6 +270,7 @@
     const leave_type = document.getElementById('lv-type').value;
     const ym = document.getElementById('lv-ym').value.trim();
     const days_used = Number(document.getElementById('lv-days').value);
+    const hours = leave_type==='시차' ? Number(document.getElementById('lv-hours').value) || null : null;
     const note = document.getElementById('lv-note').value.trim() || null;
     const msgSlot = document.getElementById('leave-msg');
 
@@ -262,7 +278,7 @@
       msgSlot.innerHTML = '<div class="msg err">직원·연월(YYYY.MM)·사용일수를 확인해주세요.</div>';
       return;
     }
-    const { error } = await db().from('hr_leave_usage').insert({ employee_id, ym, days_used, note, leave_type });
+    const { error } = await db().from('hr_leave_usage').insert({ employee_id, ym, days_used, note, leave_type, hours });
     if(error){
       msgSlot.innerHTML = `<div class="msg err">저장 실패: ${error.message}</div>`;
       return;
