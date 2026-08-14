@@ -145,6 +145,8 @@
         return out;
       }
 
+      const isSingleMonth = period!=='ALL' && period.indexOf('YEAR:')!==0;
+
       const periodChanRows = repRows.filter(r=>{
         if(period==='ALL') return true;
         if(period.indexOf('YEAR:')===0) return r.ym.startsWith(period.slice(5)+'.');
@@ -155,15 +157,24 @@
       const topChannel = chanList[0];
       const maxRev = Math.max(...chanList.map(c=>c.revenue), 1);
 
-      // 연간 월평균 (데이터에 있는 가장 최근 연도 기준)
-      const latestYear = monthlyList.length ? monthlyList[monthlyList.length-1].ym.split('.')[0] : null;
-      const yearYms = [...new Set(monthlyList.filter(m=>m.ym.startsWith(latestYear+'.')).map(m=>m.ym))];
-      const yearMonthCount = Math.max(yearYms.length, 1);
-      const annualAgg = withRate(channelAgg(repRows.filter(r=>r.ym.startsWith(latestYear+'.'))));
+      // 연간 누적 월평균: 연초 ~ "기준 달"까지 누적 실적 ÷ 개월수. 단일 월 선택 시 기준 달 = 선택한 달,
+      // 연도/전체기간 선택 시에는 데이터상 가장 최근 달을 기준으로 사용
+      let throughYm;
+      if(isSingleMonth) throughYm = period;
+      else if(period.indexOf('YEAR:')===0){
+        const y = period.slice(5);
+        const yms = monthlyList.filter(m=>m.ym.startsWith(y+'.')).map(m=>m.ym);
+        throughYm = yms.length ? yms[yms.length-1] : null;
+      } else {
+        throughYm = monthlyList.length ? monthlyList[monthlyList.length-1].ym : null;
+      }
+      const throughYear = throughYm ? throughYm.split('.')[0] : null;
+      const ytdYms = throughYm ? monthlyList.filter(m=>m.ym.startsWith(throughYear+'.') && m.ym<=throughYm).map(m=>m.ym) : [];
+      const yearMonthCount = Math.max(ytdYms.length, 1);
+      const annualAgg = withRate(channelAgg(repRows.filter(r=>ytdYms.includes(r.ym))));
+      const latestYear = throughYear;
 
-      // 직전월 (데이터상 가장 최근 월)
       // 직전월 = 선택한 월의 바로 전달. 연도/전체기간 선택 시에는 데이터상 가장 최근 달의 전달을 기본값으로 사용
-      const isSingleMonth = period!=='ALL' && period.indexOf('YEAR:')!==0;
       let lastYm = null;
       if(isSingleMonth){
         const idx = monthlyList.findIndex(m=>m.ym===period);
@@ -173,8 +184,10 @@
       }
       const lastMonthAgg = withRate(channelAgg(repRows.filter(r=>r.ym===lastYm)));
 
+      // 채널 표 정렬은 선택 기간과 무관하게 전체기간 매출 기준으로 고정 (달 바꿔도 줄 순서가 안 바뀌게)
+      const allTimeAgg = channelAgg(repRows);
       const allChannels = [...new Set([...Object.keys(chanAgg), ...Object.keys(annualAgg), ...Object.keys(lastMonthAgg)])]
-        .sort((a,b)=>(chanAgg[b]?.revenue||0)-(chanAgg[a]?.revenue||0));
+        .sort((a,b)=>(allTimeAgg[b]?.revenue||0)-(allTimeAgg[a]?.revenue||0));
 
       const label = periodLabel(period);
       const content = document.getElementById('content');
@@ -214,14 +227,14 @@
 
         <div class="panel">
           <h2>채널별 실적</h2>
-          <p class="panel-note">${rep} 담당 건 기준 · 선택 기간(${label}) / ${latestYear?latestYear+'년 월평균':'-'} / 직전월(${lastYm||'-'}) 비교</p>
+          <p class="panel-note">${rep} 담당 건 기준 · 선택 기간(${label}) / ${latestYear?latestYear+'년 1월~'+(throughYm?throughYm.split('.')[1]+'월 누적평균':''):'-'} / 직전월(${lastYm||'-'}) 비교</p>
           <div class="table-scroll">
           <table id="chan-table">
             <thead>
               <tr>
                 <th rowspan="2">채널</th>
                 <th colspan="3">${label}</th>
-                <th colspan="3">${latestYear||'-'}년 월평균</th>
+                <th colspan="3">${latestYear||'-'}년 누적 월평균</th>
                 <th colspan="3">직전월(${lastYm||'-'})</th>
               </tr>
               <tr>
