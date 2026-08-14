@@ -31,6 +31,9 @@
   tbody td{border-bottom:1px solid #f4f4f5;}
   tbody tr:last-child td{border-bottom:none;}
   .table-scroll{overflow-x:auto;}
+  #chan-table th:nth-child(5), #chan-table td:nth-child(5),
+  #chan-table th:nth-child(8), #chan-table td:nth-child(8){border-left:1px solid #E4E4E7;}
+  #chan-table thead tr:first-child th{text-align:center;background:#fafafa;}
   .bar-cell{display:flex;align-items:center;gap:8px;justify-content:flex-end;}
   .bar-track{width:60px;height:6px;border-radius:4px;background:#f4f4f5;overflow:hidden;flex-shrink:0;}
   .bar-fill{height:100%;border-radius:4px;background:var(--accent);}
@@ -123,20 +126,47 @@
       const periodTarget = REP_TARGET_PER_MONTH * Math.max(periodRows.length,1);
       const achieveRate = periodTarget ? periodRev/periodTarget*100 : 0;
 
-      const chanAgg = {};
-      repRows.filter(r=>{
+      function channelAgg(rows){
+        const agg = {};
+        rows.forEach(r=>{
+          if(!agg[r.channel]) agg[r.channel] = {channel:r.channel, quotes:0, contracts:0, revenue:0};
+          agg[r.channel].quotes += r.quotes;
+          agg[r.channel].contracts += r.contracts;
+          agg[r.channel].revenue += r.revenue;
+        });
+        return agg;
+      }
+      function withRate(agg){
+        const out = {};
+        Object.keys(agg).forEach(k=>{
+          const c = agg[k];
+          out[k] = {...c, rate: c.quotes ? c.contracts/c.quotes*100 : 0};
+        });
+        return out;
+      }
+
+      const periodChanRows = repRows.filter(r=>{
         if(period==='ALL') return true;
         if(period.indexOf('YEAR:')===0) return r.ym.startsWith(period.slice(5)+'.');
         return r.ym===period;
-      }).forEach(r=>{
-        if(!chanAgg[r.channel]) chanAgg[r.channel] = {channel:r.channel, quotes:0, contracts:0, revenue:0};
-        chanAgg[r.channel].quotes += r.quotes;
-        chanAgg[r.channel].contracts += r.contracts;
-        chanAgg[r.channel].revenue += r.revenue;
       });
-      const chanList = Object.values(chanAgg).map(c=>({...c, rate: c.quotes ? c.contracts/c.quotes*100 : 0})).sort((a,b)=>b.revenue-a.revenue);
+      const chanAgg = withRate(channelAgg(periodChanRows));
+      const chanList = Object.values(chanAgg).sort((a,b)=>b.revenue-a.revenue);
       const topChannel = chanList[0];
       const maxRev = Math.max(...chanList.map(c=>c.revenue), 1);
+
+      // 연간 월평균 (데이터에 있는 가장 최근 연도 기준)
+      const latestYear = monthlyList.length ? monthlyList[monthlyList.length-1].ym.split('.')[0] : null;
+      const yearYms = [...new Set(monthlyList.filter(m=>m.ym.startsWith(latestYear+'.')).map(m=>m.ym))];
+      const yearMonthCount = Math.max(yearYms.length, 1);
+      const annualAgg = withRate(channelAgg(repRows.filter(r=>r.ym.startsWith(latestYear+'.'))));
+
+      // 직전월 (데이터상 가장 최근 월)
+      const lastYm = monthlyList.length ? monthlyList[monthlyList.length-1].ym : null;
+      const lastMonthAgg = withRate(channelAgg(repRows.filter(r=>r.ym===lastYm)));
+
+      const allChannels = [...new Set([...Object.keys(chanAgg), ...Object.keys(annualAgg), ...Object.keys(lastMonthAgg)])]
+        .sort((a,b)=>(chanAgg[b]?.revenue||0)-(chanAgg[a]?.revenue||0));
 
       const label = periodLabel(period);
       const content = document.getElementById('content');
@@ -176,19 +206,41 @@
 
         <div class="panel">
           <h2>채널별 실적</h2>
-          <p class="panel-note">${label} · ${rep} 담당 건 기준</p>
+          <p class="panel-note">${rep} 담당 건 기준 · 선택 기간(${label}) / ${latestYear?latestYear+'년 월평균':'-'} / 직전월(${lastYm||'-'}) 비교</p>
           <div class="table-scroll">
-          <table>
-            <thead><tr><th>채널</th><th>견적</th><th>계약</th><th>전환율</th><th>계약금액</th></tr></thead>
+          <table id="chan-table">
+            <thead>
+              <tr>
+                <th rowspan="2">채널</th>
+                <th colspan="3">${label}</th>
+                <th colspan="3">${latestYear||'-'}년 월평균</th>
+                <th colspan="3">직전월(${lastYm||'-'})</th>
+              </tr>
+              <tr>
+                <th>견적</th><th>계약</th><th>전환율</th>
+                <th>견적</th><th>계약</th><th>전환율</th>
+                <th>견적</th><th>계약</th><th>전환율</th>
+              </tr>
+            </thead>
             <tbody>
-              ${chanList.map(c=>`
+              ${allChannels.map(ch=>{
+                const cur = chanAgg[ch] || {quotes:0, contracts:0, rate:0};
+                const ann = annualAgg[ch] || {quotes:0, contracts:0, rate:0};
+                const lm = lastMonthAgg[ch] || {quotes:0, contracts:0, rate:0};
+                const annQ = ann.quotes/yearMonthCount, annC = ann.contracts/yearMonthCount;
+                return `
                 <tr>
-                  <td>${c.channel}</td>
-                  <td>${won(c.quotes)}</td>
-                  <td>${won(c.contracts)}</td>
-                  <td>${pct(c.rate)}%</td>
-                  <td><div class="bar-cell"><div class="bar-track"><div class="bar-fill" style="width:${c.revenue/maxRev*100}%"></div></div>${eok(c.revenue)}</div></td>
-                </tr>`).join('') || '<tr><td colspan="5" style="color:var(--willy-sub);">해당 기간 실적이 없습니다.</td></tr>'}
+                  <td>${ch}</td>
+                  <td>${won(cur.quotes)}</td>
+                  <td>${won(cur.contracts)}</td>
+                  <td>${pct(cur.rate)}%</td>
+                  <td>${pct(annQ)}</td>
+                  <td>${pct(annC)}</td>
+                  <td>${pct(ann.rate)}%</td>
+                  <td>${won(lm.quotes)}</td>
+                  <td>${won(lm.contracts)}</td>
+                  <td>${pct(lm.rate)}%</td>
+                </tr>`;}).join('') || '<tr><td colspan="10" style="color:var(--willy-sub);">해당 기간 실적이 없습니다.</td></tr>'}
             </tbody>
           </table>
           </div>
