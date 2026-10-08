@@ -87,10 +87,13 @@
       ]);
       if(e2||e3) throw (e2||e3);
       if(!naver?.length || !channelMonthly?.length) throw new Error('데이터가 비어 있습니다.');
+      // 카페 표는 아직 없어도 페이지 전체가 깨지지 않도록 오류는 무시
+      const { data:cafeData } = await db.from('marketing_cafe_monthly').select('*');
+      const cafeMonthly = cafeData || [];
       let period = channelMonthly.map(r=>r.ym).sort().pop();
       const periods = WillyShell.buildPeriodOptions(channelMonthly);
-      WillyShell.setPeriodFilter(periods, period, (p)=>{ period = p; render(naver, channelMonthly, period); });
-      render(naver, channelMonthly, period);
+      WillyShell.setPeriodFilter(periods, period, (p)=>{ period = p; render(naver, channelMonthly, period, cafeMonthly); });
+      render(naver, channelMonthly, period, cafeMonthly);
     }catch(err){
       content.innerHTML = `<div class="err">데이터를 불러오지 못했습니다.<br>${(err && err.message) || err}</div>`;
       console.error(err);
@@ -119,7 +122,7 @@
     document.getElementById(tableId+'-channel-body').innerHTML = channelTable(items, tableId, sort);
   });
 
-  function render(naver, channelMonthly, period){
+  function render(naver, channelMonthly, period, cafeMonthly){
     const rows = WillyShell.filterByPeriod(channelMonthly, period);
     const b2bRows = rows.filter(r=>r.is_b2b);
     const b2cRows = rows.filter(r=>!r.is_b2b);
@@ -193,6 +196,13 @@
         </div>
       </div>
 
+      ${cafeMonthly && cafeMonthly.length ? `
+      <div class="panel">
+        <h2>네이버 카페별 실적</h2>
+        <p class="panel-note">${label} · 유입경로가 "네이버 카페"인 건의 세부경로(카페명) 기준 · 견적은 견적 제출월, 계약은 계약일 기준이라 전환율은 참고용</p>
+        ${cafeTable(WillyShell.filterByPeriod(cafeMonthly, period))}
+      </div>` : ''}
+
       <div class="panel">
         <h2>네이버 유료광고 (${naverMonth})</h2>
         <p class="panel-note">파워링크·쇼핑검색은 블로그/스마트스토어로 랜딩되는 구조라 위 채널 표와는 분리 집계됩니다 · 상단 기간 필터와 무관하게 최신월 고정 표시</p>
@@ -237,6 +247,20 @@
         </div>
       </div>
     `;
+  }
+
+  function cafeTable(rows){
+    const agg = {};
+    rows.forEach(r=>{
+      if(!agg[r.cafe]) agg[r.cafe] = {cafe:r.cafe, quotes:0, contracts:0, revenue:0};
+      agg[r.cafe].quotes += r.quotes; agg[r.cafe].contracts += r.contracts; agg[r.cafe].revenue += r.revenue;
+    });
+    const list = Object.values(agg).sort((a,b)=>b.quotes-a.quotes || b.contracts-a.contracts);
+    if(!list.length) return '<div style="font-size:12px;color:var(--willy-sub);padding:8px 0;">해당 기간 실적이 없습니다.</div>';
+    return `<div class="table-scroll"><table>
+      <thead><tr><th>카페</th><th>견적</th><th>계약</th><th>전환율</th><th>계약금액</th></tr></thead>
+      <tbody>${list.map(c=>`<tr><td class="channel">${c.cafe}</td><td>${won(c.quotes)}</td><td>${won(c.contracts)}</td><td>${c.quotes?pct(c.contracts/c.quotes*100)+'%':'-'}</td><td>${won(c.revenue)}원</td></tr>`).join('')}</tbody>
+    </table></div>`;
   }
 
   function aggregateChannel(rows){
