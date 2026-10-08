@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
+<link rel="icon" type="image/png" sizes="48x48" href="/icons/favicon-48.png">
+<link rel="shortcut icon" href="/favicon.ico">
+<link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#141B3C">
+<meta name="apple-mobile-web-app-title" content="WILLY">
+
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>일별 성과 입력 · WILLY</title>
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
+<link rel="stylesheet" href="../shared/theme.css" />
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../shared/shell.js"></script>
+<style>
+  :root{ --accent:#ea580c; --accent-light:#fed7aa; }
+  .panel{background:#fff;border:1px solid #E4E4E7;border-radius:14px;padding:18px 20px;margin-bottom:16px;}
+  .panel h2{font-size:15px;margin:0 0 4px;}
+  .panel .panel-note{font-size:11.5px;color:var(--willy-sub);margin:0 0 14px;}
+  .group{border:1px solid #f0f0f2;border-radius:10px;padding:12px 14px;margin-bottom:12px;}
+  .group h3{font-size:12.5px;margin:0 0 10px;color:var(--willy-text);}
+  .fields{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+  .fields label, .date-row label{font-size:11.5px;font-weight:600;color:var(--willy-sub);display:block;margin-bottom:4px;}
+  .fields input, .date-row input, textarea{width:100%;padding:8px 10px;border:1px solid #E4E4E7;border-radius:8px;font-family:inherit;font-size:13px;box-sizing:border-box;}
+  textarea{min-height:90px;resize:vertical;}
+  .date-row{display:flex;gap:12px;align-items:end;margin-bottom:14px;max-width:360px;}
+  .btn{padding:9px 16px;border:none;border-radius:8px;background:var(--accent);color:#fff;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;}
+  .btn:hover{background:#c2410c;}
+  .btn.sub{background:#f4f4f5;color:var(--willy-text);}
+  .btn.sub:hover{background:#e4e4e7;}
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  th,td{text-align:left;padding:8px 6px;white-space:nowrap;}
+  th{color:var(--willy-sub);font-weight:500;border-bottom:1px solid #E4E4E7;font-size:12px;}
+  td{border-bottom:1px solid #f4f4f5;}
+  td.num,th.num{text-align:right;}
+  .table-scroll{overflow-x:auto;}
+  .msg{font-size:12.5px;padding:9px 12px;border-radius:8px;margin-bottom:14px;}
+  .msg.ok{background:#DFEAFF;color:#1338BE;}
+  .msg.err{background:#FFE1E8;color:#D81A3C;}
+  .loading,.err-box{padding:40px;text-align:center;color:var(--willy-sub);font-size:13px;}
+  .back-link{display:inline-block;font-size:12.5px;color:var(--willy-sub);margin-bottom:12px;text-decoration:none;}
+  @media (max-width:860px){ .fields{grid-template-columns:repeat(2,1fr);} }
+</style>
+</head>
+<body>
+<div id="shell-root"></div>
+<div id="content"><div class="loading">불러오는 중...</div></div>
+
+<script>
+  WillyShell.mount({active:'marketing', title:'일별 성과 입력', subtitle:'매일 아침 모닝브리핑 수치를 날짜별로 기록합니다'});
+
+  const won = n => Math.round(n).toLocaleString('ko-KR');
+  const db = () => WillyShell.getAuthClient();
+
+  // [컬럼명, 화면 라벨, 그룹]  — 붙여넣기용 헤더 이름도 이 "화면 라벨"을 그대로 씁니다
+  const GROUPS = [
+    {title:'구글 광고', fields:[['google_impr','구글 노출'],['google_clicks','구글 클릭'],['google_cost','구글 비용'],['google_conv','구글 전환']]},
+    {title:'네이버 광고', fields:[['naver_impr','네이버 노출'],['naver_clicks','네이버 클릭'],['naver_cost','네이버 비용'],['naver_conv','네이버 전환']]},
+    {title:'쿠팡 광고', fields:[['coupang_impr','쿠팡 노출'],['coupang_clicks','쿠팡 클릭'],['coupang_cost','쿠팡 광고비'],['coupang_orders','쿠팡 주문']]},
+    {title:'인스타그램(Meta)', fields:[['insta_cost','인스타 지출'],['insta_impr','인스타 노출'],['insta_link_clicks','인스타 링크클릭'],['insta_landing','인스타 랜딩조회']]},
+    {title:'홈페이지(GA4)', fields:[['ga_visits','홈페이지 방문'],['ga_phone','전화 클릭'],['ga_kakao','카카오 클릭'],['ga_form','폼 제출']]},
+    {title:'견적 문의', fields:[['inquiries','실제 견적 문의']]}
+  ];
+  const NUM_FIELDS = GROUPS.flatMap(g=>g.fields);
+  const todayStr = () => { const d=new Date(); d.setDate(d.getDate()-1); return d.toISOString().slice(0,10); }; // 기본값 = 어제(브리핑 기준일)
+  let rows = [];
+
+  async function main(){
+    const content = document.getElementById('content');
+    try{
+      const { data, error } = await db().from('marketing_daily').select('*').order('day',{ascending:false}).limit(60);
+      if(error) throw error;
+      rows = data || [];
+      render();
+    }catch(err){
+      content.innerHTML = `<div class="err-box">데이터를 불러오지 못했습니다.<br>${(err && err.message) || err}<br><span style="font-size:12px;">(일별 성과 표가 아직 없다면 sql/13_marketing_daily.sql 을 먼저 실행해야 합니다)</span></div>`;
+      console.error(err);
+    }
+  }
+
+  function render(){
+    const content = document.getElementById('content');
+    content.innerHTML = `
+      <a class="back-link" href="marketing.html">← 마케팅 비용 입력으로</a>
+      <div class="panel">
+        <h2>하루치 입력</h2>
+        <p class="panel-note">브리핑 기준일(보통 어제) 날짜를 고르고 수치를 넣으세요. 같은 날짜로 다시 저장하면 덮어쓰고, 비워둔 칸은 0으로 저장됩니다.</p>
+        <div id="msg-slot"></div>
+        <div class="date-row"><div style="flex:1;"><label>날짜</label><input id="f-day" type="date" value="${todayStr()}" /></div></div>
+        ${GROUPS.map(g=>`
+          <div class="group"><h3>${g.title}</h3>
+            <div class="fields">${g.fields.map(([k,l])=>`<div><label>${l}${/비용|지출|광고비/.test(l)?' (원)':''}</label><input id="f-${k}" type="number" step="1" min="0" inputmode="numeric" /></div>`).join('')}</div>
+          </div>`).join('')}
+        <div class="group"><h3>브리핑 한 줄 요약 (선택)</h3><textarea id="f-memo" placeholder="브리핑 맨 위 요약 문장을 붙여넣으면 대시보드 맨 위에 표시됩니다"></textarea></div>
+        <button class="btn" id="save-btn">저장</button>
+      </div>
+
+      <div class="panel">
+        <h2>여러 날 한 번에 붙여넣기</h2>
+        <p class="panel-note">엑셀·구글시트에서 복사한 표(탭 구분) 또는 CSV. 첫 줄은 헤더: <b>날짜</b>, ${NUM_FIELDS.map(f=>f[1]).join(', ')}, 메모 — 필요한 열만 넣어도 됩니다. 날짜는 2026-10-07 또는 2026.10.07 형식.</p>
+        <textarea id="bulk" placeholder="날짜&#9;구글 비용&#9;네이버 비용&#9;홈페이지 방문&#10;2026-10-07&#9;13196&#9;46605&#9;70"></textarea>
+        <div style="margin-top:10px;display:flex;gap:8px;">
+          <button class="btn sub" id="bulk-btn">붙여넣은 내용 저장</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>최근 입력 내역</h2>
+        <div class="table-scroll"><table>
+          <thead><tr><th>날짜</th><th class="num">광고비 합계</th><th class="num">홈페이지 방문</th><th class="num">문의 신호</th><th class="num">견적 문의</th><th></th></tr></thead>
+          <tbody>${rows.map(r=>`<tr>
+            <td>${r.day}</td>
+            <td class="num">${won(r.google_cost+r.naver_cost+r.coupang_cost+r.insta_cost)}원</td>
+            <td class="num">${won(r.ga_visits)}</td>
+            <td class="num">${won(r.ga_phone+r.ga_kakao+r.ga_form)}</td>
+            <td class="num">${won(r.inquiries)}</td>
+            <td><a href="#" data-edit="${r.day}" style="font-size:12px;">불러오기</a></td></tr>`).join('') || '<tr><td colspan="6" style="color:var(--willy-sub);">입력된 내역이 없습니다.</td></tr>'}</tbody>
+        </table></div>
+      </div>`;
+
+    document.getElementById('save-btn').addEventListener('click', saveOne);
+    document.getElementById('bulk-btn').addEventListener('click', saveBulk);
+    document.getElementById('f-day').addEventListener('change', e=>fillForm(e.target.value));
+    content.querySelectorAll('[data-edit]').forEach(a=>a.addEventListener('click', e=>{
+      e.preventDefault(); document.getElementById('f-day').value = a.dataset.edit; fillForm(a.dataset.edit); window.scrollTo({top:0,behavior:'smooth'});
+    }));
+    fillForm(document.getElementById('f-day').value);
+  }
+
+  function fillForm(day){
+    const r = rows.find(x=>x.day===day);
+    NUM_FIELDS.forEach(([k])=>{ document.getElementById('f-'+k).value = r ? r[k] : ''; });
+    document.getElementById('f-memo').value = r && r.memo ? r.memo : '';
+  }
+
+  async function upsert(list){
+    const uid = (await db().auth.getUser()).data?.user?.id || null;
+    const payload = list.map(o=>({...o, updated_by:uid, updated_at:new Date().toISOString()}));
+    return db().from('marketing_daily').upsert(payload, { onConflict:'day' });
+  }
+
+  async function saveOne(){
+    const slot = document.getElementById('msg-slot');
+    const day = document.getElementById('f-day').value;
+    if(!day){ slot.innerHTML = '<div class="msg err">날짜를 선택해주세요.</div>'; return; }
+    const o = { day, memo: document.getElementById('f-memo').value.trim() || null };
+    NUM_FIELDS.forEach(([k])=>{ o[k] = Math.max(0, Math.round(Number(document.getElementById('f-'+k).value) || 0)); });
+    const { error } = await upsert([o]);
+    if(error){ slot.innerHTML = `<div class="msg err">저장 실패: ${error.message}</div>`; return; }
+    slot.innerHTML = `<div class="msg ok">${day} 저장되었습니다.</div>`;
+    await reload();
+  }
+
+  function normDay(s){
+    const m = String(s||'').trim().match(/^(\d{4})[-./](\d{1,2})[-./](\d{1,2})/);
+    return m ? `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}` : null;
+  }
+
+  async function saveBulk(){
+    const slot = document.getElementById('msg-slot');
+    const text = document.getElementById('bulk').value.trim();
+    if(!text){ slot.innerHTML = '<div class="msg err">붙여넣을 내용이 없습니다.</div>'; return; }
+    const lines = text.split(/\r?\n/).filter(l=>l.trim());
+    const delim = lines[0].includes('\t') ? '\t' : ',';
+    const header = lines[0].split(delim).map(h=>h.trim());
+    const colKey = h => h==='날짜' ? 'day' : h==='메모' ? 'memo' : (NUM_FIELDS.find(f=>f[1]===h)||[])[0];
+    const keys = header.map(colKey);
+    if(!keys.includes('day')){ slot.innerHTML = '<div class="msg err">첫 줄 헤더에 "날짜" 열이 필요합니다.</div>'; return; }
+    const unknown = header.filter((h,i)=>!keys[i]);
+    const list = [];
+    for(const line of lines.slice(1)){
+      const cells = line.split(delim);
+      const o = {};
+      keys.forEach((k,i)=>{
+        if(!k) return;
+        const v = (cells[i]||'').trim();
+        if(k==='day') o.day = normDay(v);
+        else if(k==='memo') o.memo = v || null;
+        else o[k] = Math.max(0, Math.round(Number(v.replace(/[₩,\s원]/g,'')) || 0));
+      });
+      if(o.day) list.push(o);
+    }
+    if(!list.length){ slot.innerHTML = '<div class="msg err">저장할 행을 찾지 못했습니다. 날짜 형식을 확인해주세요.</div>'; return; }
+    const { error } = await upsert(list);
+    if(error){ slot.innerHTML = `<div class="msg err">저장 실패: ${error.message}</div>`; return; }
+    slot.innerHTML = `<div class="msg ok">${list.length}일치 저장되었습니다.${unknown.length?` (인식하지 못한 열은 건너뜀: ${unknown.join(', ')})`:''}</div>`;
+    document.getElementById('bulk').value = '';
+    await reload();
+  }
+
+  async function reload(){
+    const { data } = await db().from('marketing_daily').select('*').order('day',{ascending:false}).limit(60);
+    rows = data || [];
+    const keepMsg = document.getElementById('msg-slot').innerHTML;
+    const day = document.getElementById('f-day').value;
+    render();
+    document.getElementById('msg-slot').innerHTML = keepMsg;
+    document.getElementById('f-day').value = day; fillForm(day);
+  }
+
+  WillyShell.requireRole(['owner','marketing'], main);
+</script>
+</body>
+</html>

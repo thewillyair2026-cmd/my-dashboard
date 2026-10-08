@@ -18,7 +18,7 @@
 <script src="../shared/shell.js"></script>
 <style>
   :root{ --accent:#1338BE; --accent-light:#DFEAFF; }
-  .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;}
+  .cards{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:16px;}
   .card .barbg{background:#f4f4f5;border-radius:999px;height:6px;margin-top:10px;overflow:hidden;}
   .card .barfg{background:var(--accent);height:100%;border-radius:999px;}
   .trend-legend{display:flex;gap:16px;font-size:11px;color:var(--willy-sub);margin-top:8px;}
@@ -53,6 +53,7 @@
   .rep-card:hover{box-shadow:0 8px 20px rgba(20,27,60,.10);}
   .back-link{display:inline-block;margin-bottom:16px;font-size:12.5px;font-weight:600;color:var(--accent);text-decoration:none;}
   .back-link:hover{text-decoration:underline;}
+  @media (max-width:1100px){ .cards{grid-template-columns:repeat(3,1fr);} }
   @media (max-width:860px){ .cards{grid-template-columns:repeat(2,1fr);} .rep-menu{grid-template-columns:repeat(2,1fr);} }
 </style>
 </head>
@@ -131,6 +132,9 @@
       const periodC = periodRows.reduce((s,m)=>s+m.contracts,0);
       const periodRev = periodRows.reduce((s,m)=>s+m.revenue,0);
       const rate = periodQ ? periodC/periodQ*100 : 0;
+      const avgDeal = periodC ? periodRev/periodC : 0;
+      const allC = monthlyList.reduce((a,m)=>a+m.contracts,0), allRev = monthlyList.reduce((a,m)=>a+m.revenue,0);
+      const allAvgDeal = allC ? allRev/allC : 0;
       const periodTarget = REP_TARGET_PER_MONTH * Math.max(periodRows.length,1);
       const achieveRate = periodTarget ? periodRev/periodTarget*100 : 0;
 
@@ -206,7 +210,7 @@
 
         <div class="cards">
           <div class="card">
-            <div class="label">${label} 계약금액</div>
+            <div class="label">${label} 계약금액 <span style="font-weight:400;">(부가세 별도)</span></div>
             <div class="value big">${eok(periodRev)}</div>
             <div class="sub">견적 ${won(periodQ)}건 · 계약 ${won(periodC)}건</div>
           </div>
@@ -219,6 +223,11 @@
           <div class="card">
             <div class="label">${label} 견적→계약 전환율</div>
             <div class="value">${pct(rate)}%</div>
+          </div>
+          <div class="card">
+            <div class="label">${label} 평균 계약단가 <span style="font-weight:400;">(부가세 별도)</span></div>
+            <div class="value">${periodC?won(Math.round(avgDeal/10000))+'만원':'-'}</div>
+            <div class="sub">계약 ${won(periodC)}건 기준${period!=='ALL'&&allAvgDeal?` · 전체기간 ${won(Math.round(allAvgDeal/10000))}만원`:''}</div>
           </div>
           <div class="card">
             <div class="label">최다 유입 채널</div>

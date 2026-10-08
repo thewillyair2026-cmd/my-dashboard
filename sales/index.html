@@ -34,7 +34,8 @@
   .rank-row .name{width:110px;font-size:13px;flex-shrink:0;}
   .rank-bar-bg{flex:1;background:#f4f4f5;border-radius:999px;height:10px;overflow:hidden;}
   .rank-bar-fg{height:100%;background:var(--accent);border-radius:999px;}
-  .rank-row .amt{width:90px;text-align:right;font-size:12.5px;font-weight:600;flex-shrink:0;}
+  .rank-row .avg-deal{font-size:10.5px;font-weight:400;color:var(--willy-sub);margin-top:2px;}
+  .rank-row .amt{width:96px;text-align:right;font-size:12.5px;font-weight:600;flex-shrink:0;}
   .brand-row .rank-bar-fg.lg{background:var(--willy-lg);}
   .brand-row .rank-bar-fg.sm{background:var(--willy-sm);}
   .funnel-step{margin-bottom:2px;}
@@ -102,7 +103,7 @@
     }
   }
 
-  const ACTIVE_STAFF = new Set(['신제호 팀장','오형민 팀장','정현수 대표','민대기 대리','김지연 주임','이유진 사원','이지은 실장','전윤진 대리']);
+  const ACTIVE_STAFF = new Set(['신제호 팀장','오형민 팀장','정현수 대표','민대기 대리','이유진 사원','이지은 실장','전윤진 대리']);
 
   function periodLabel(period){
     if(period==='ALL') return '전체기간';
@@ -213,7 +214,7 @@
       <div class="grid2">
         <div class="panel">
           <h2>담당자별 실적</h2>
-          <p class="panel-note">${period==='ALL' ? '전체기간은 현재 재직 중인 담당자만 · 월/연도 선택 시 퇴사자 포함' : '선택한 기간에 활동한 담당자 전체(퇴사자 포함) 표시'}</p>
+          <p class="panel-note">${period==='ALL' ? '전체기간은 현재 재직 중인 담당자만 · 월/연도 선택 시 퇴사자 포함' : '선택한 기간에 활동한 담당자 전체(퇴사자 포함) 표시'} · 금액·평균 계약단가는 부가세 별도</p>
           <div id="person-rank-body">${personRankList(aggregateRank(rankMonthly,'person',period))}</div>
         </div>
         <div class="panel">
@@ -240,8 +241,9 @@
     }
     const agg = {};
     rows.forEach(r=>{
-      if(!agg[r.name]) agg[r.name] = {name:r.name, amount:0};
+      if(!agg[r.name]) agg[r.name] = {name:r.name, amount:0, contracts:0};
       agg[r.name].amount += r.revenue;
+      agg[r.name].contracts += r.contracts;
     });
     return Object.values(agg).filter(a=>a.amount>0).sort((a,b)=>b.amount-a.amount);
   }
@@ -253,7 +255,7 @@
       <div class="rank-row">
         <div class="name">${i.name}</div>
         <div class="rank-bar-bg"><div class="rank-bar-fg" style="width:${i.amount/max*100}%"></div></div>
-        <div class="amt">${eok(i.amount)}</div>
+        <div class="amt">${eok(i.amount)}<div class="avg-deal">평균 ${i.contracts?Math.round(i.amount/i.contracts/10000).toLocaleString('ko-KR')+'만원':'-'}</div></div>
       </div>`).join('');
   }
 
