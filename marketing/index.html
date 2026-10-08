@@ -104,7 +104,7 @@
         db.from('marketing_channel_monthly').select('*')
       ]);
       if(e2||e3) throw (e2||e3);
-      if(!naver?.length || !channelMonthly?.length) throw new Error('데이터가 비어 있습니다.');
+      if(!channelMonthly?.length) throw new Error('데이터가 비어 있습니다.');
       // 카페 표는 아직 없어도 페이지 전체가 깨지지 않도록 오류는 무시
       const { data:cafeData } = await db.from('marketing_cafe_monthly').select('*');
       const cafeMonthly = cafeData || [];
@@ -166,9 +166,23 @@
     currentAggB2b = aggB2b;
     const topChannel = [...agg].sort((a,b)=>b.quotes-a.quotes)[0];
 
-    const naverSpendTotal = naver.reduce((s,n)=>s+n.spend,0);
-    const naverFee = naverSpendTotal * 0.1;
-    const naverMonth = naver[0]?.month || '';
+    // 네이버 유료광고: 상단 기간 필터를 따라가며, 여러 달이면 상품별로 합산
+    const naverInPeriod = WillyShell.filterByPeriod((naver||[]).map(n=>({...n, ym:n.month})), period);
+    const naverAgg = {};
+    naverInPeriod.forEach(n=>{
+      const a = naverAgg[n.product] || (naverAgg[n.product] = {product:n.product, impressions:0, clicks:0, spend:0, conversions:0, conversion_revenue:0, fee:0});
+      a.impressions += n.impressions; a.clicks += n.clicks; a.spend += n.spend;
+      a.conversions += n.conversions; a.conversion_revenue += n.conversion_revenue;
+      a.fee += n.spend * ((n.agency_fee_rate==null?10:n.agency_fee_rate)/100);
+    });
+    const naverList = Object.values(naverAgg).sort((a,b)=>b.spend-a.spend);
+    const naverSpendTotal = naverList.reduce((s,n)=>s+n.spend,0);
+    const naverFee = naverList.reduce((s,n)=>s+n.fee,0);
+    const naverMonths = [...new Set(naverInPeriod.map(n=>n.month))].sort();
+    const naverShop = naverAgg['쇼핑검색'];
+    // 일별 브리핑으로 입력된 네이버 합계 (같은 기간)
+    const naverDaily = WillyShell.filterByPeriod(dailyRows.map(r=>({...r, ym:r.day.slice(0,4)+'.'+r.day.slice(5,7)})), period);
+    const nd = k => naverDaily.reduce((s,r)=>s+(r[k]||0),0);
 
     const label = periodLabel(period);
     const content = document.getElementById('content');
@@ -228,13 +242,13 @@
       </div>` : ''}
 
       <div class="panel">
-        <h2>네이버 유료광고 (${naverMonth})</h2>
-        <p class="panel-note">파워링크·쇼핑검색은 블로그/스마트스토어로 랜딩되는 구조라 위 채널 표와는 분리 집계됩니다 · 상단 기간 필터와 무관하게 최신월 고정 표시</p>
+        <h2>네이버 유료광고 (${label})</h2>
+        <p class="panel-note">파워링크·쇼핑검색은 블로그/스마트스토어로 랜딩되는 구조라 위 채널 표와는 분리 집계됩니다 · 상단 기간 필터를 따라가며(여러 달이면 합산), 월별 입력은 <a href="../input/marketing.html" style="color:var(--accent);font-weight:600;">마케팅 비용 입력</a>에서 합니다</p>
         <div class="table-scroll">
         <table>
           <thead><tr><th>상품</th><th>노출</th><th>클릭</th><th>광고비</th><th>전환</th><th>전환매출</th></tr></thead>
           <tbody>
-            ${naver.map(n=>`
+            ${naverList.map(n=>`
               <tr>
                 <td>${n.product}</td>
                 <td>${won(n.impressions)}</td>
@@ -242,14 +256,18 @@
                 <td>${won(n.spend)}원</td>
                 <td>${n.conversions===0?`<span class="zero-tag">0건</span>`:won(n.conversions)+'건'}</td>
                 <td>${won(n.conversion_revenue)}원</td>
-              </tr>`).join('')}
+              </tr>`).join('') || `<tr><td colspan="6" style="color:var(--willy-sub);">${label}에 입력된 월별 네이버 광고 데이터가 없습니다.</td></tr>`}
           </tbody>
         </table>
         </div>
-        <div class="fee-note">
-          광고비 합계 <b>${won(naverSpendTotal)}원</b> 중 대행사 수수료 10% = <b>${won(naverFee)}원</b>이 별도로 나갑니다.
-          파워링크 전환 0건은 광고가 안 통해서가 아니라, 블로그로 랜딩되는 구조상 전환추적 자체가 불가능하기 때문입니다.
-          쇼핑검색 전환 21건은 신규 고객이 아니라 <b>기존 계약자가 계약금을 스마트스토어로 결제한 것</b>이라 실제 신규 유입 효과는 거의 없습니다.
+        ${naverList.length?`<div class="fee-note">
+          광고비 합계 <b>${won(naverSpendTotal)}원</b> 중 대행사 수수료(광고비의 약 10%) = <b>${won(naverFee)}원</b>이 별도로 나갑니다${naverMonths.length?` (${naverMonths.join(', ')})`:''}.
+          파워링크 전환 0건은 광고가 안 통해서가 아니라, 블로그로 랜딩되는 구조상 전환추적이 안 되기 때문일 수 있고,
+          쇼핑검색 전환은 신규 고객이 아니라 <b>기존 계약자가 계약금을 스마트스토어로 결제한 건</b>이 섞여 있을 수 있어 신규 유입 효과와는 구분해서 봐야 합니다.
+        </div>`:''}
+        ${naverDaily.length?`<div class="fee-note" style="margin-top:8px;">
+          <b>일별 브리핑 기준 네이버 합계</b>(${naverDaily.length}일): 노출 ${won(nd('naver_impr'))} · 클릭 ${won(nd('naver_clicks'))}${nd('naver_impr')?` (클릭률 ${pct(nd('naver_clicks')/nd('naver_impr')*100)}%)`:''} · 광고비 ${won(nd('naver_cost'))}원${nd('naver_clicks')?` (클릭당 ${won(nd('naver_cost')/nd('naver_clicks'))}원)`:''} · 전환 ${won(nd('naver_conv'))}건
+        </div>`:''}
         </div>
       </div>
 
@@ -266,7 +284,7 @@
           </div>
           <div class="insight-item">
             <div class="num">3</div>
-            <div class="txt"><strong>쇼핑검색 광고 노출 위치 재검토</strong><span>월 ${won(naver.find(n=>n.product==='쇼핑검색')?.spend||0)}원이 신규 유입 없이 결제 페이지 광고로 소진 중</span></div>
+            <div class="txt"><strong>쇼핑검색 광고 노출 위치 재검토</strong><span>${naverShop?`${label} 쇼핑검색 광고비 ${won(naverShop.spend)}원 · 전환 ${won(naverShop.conversions)}건 — 전환이 기존 계약자의 계약금 결제인지 확인 필요`:`${label}에 입력된 쇼핑검색 데이터가 없습니다`}</span></div>
           </div>
         </div>
       </div>
