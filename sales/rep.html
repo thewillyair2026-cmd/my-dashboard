@@ -249,7 +249,9 @@
   }
 
   function render(all, rep){
-    let period = 'ALL';
+    // 기본 기간 = 데이터상 가장 최근 달 (담당자 본인 행이 없는 달이어도 전사 기준 최신 달)
+    const latestYm = [...all.map(r=>r.ym), ...personMonthly.map(r=>r.ym)].sort().pop();
+    let period = latestYm || 'ALL';
 
     function renderBody(){
       const repRows = all;
@@ -260,6 +262,7 @@
         monthly[r.ym].contracts += r.contracts;
         monthly[r.ym].revenue += r.revenue;
       });
+      if(latestYm && !monthly[latestYm]) monthly[latestYm] = {ym:latestYm, quotes:0, contracts:0, revenue:0};
       const monthlyList = Object.values(monthly).sort((a,b)=>a.ym.localeCompare(b.ym));
       const periods = WillyShell.buildPeriodOptions(monthlyList);
 
